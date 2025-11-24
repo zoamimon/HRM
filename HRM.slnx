@@ -1,1 +1,9 @@
-<Solution />
+<Solution>
+  <Folder Name="/scripts/" />
+  <Folder Name="/src/" />
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Identity/" />
+  <Folder Name="/src/Modules/Organization/" />
+  <Folder Name="/src/Modules/Personnel/" />
+  <Folder Name="/src/Shared/" />
+</Solution>
