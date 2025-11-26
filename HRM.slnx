@@ -1,9 +1,33 @@
 <Solution>
-  <Folder Name="/scripts/" />
-  <Folder Name="/src/" />
+  <Folder Name="/database/" />
+  <Folder Name="/database/Scripts/" />
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/HRM.Api/HRM.Api.csproj" Id="5d657c6d-d5b1-4e70-b5cc-0061f43b372d" />
+    <Project Path="src/HRM.Web/HRM.Web.csproj" Id="9311ebca-ef4f-44d8-91aa-92f3ea36ab8c" />
+  </Folder>
   <Folder Name="/src/Modules/" />
-  <Folder Name="/src/Modules/Identity/" />
-  <Folder Name="/src/Modules/Organization/" />
-  <Folder Name="/src/Modules/Personnel/" />
-  <Folder Name="/src/Shared/" />
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/HRM.Modules.Identity.Api/HRM.Modules.Identity.Api.csproj" Id="b9b1d7a6-5cdc-450f-bd4b-082d4d94e145" />
+    <Project Path="src/Modules/Identity/HRM.Modules.Identity.Application/HRM.Modules.Identity.Application.csproj" Id="56d75d31-53ac-4060-abce-38def0ad0639" />
+    <Project Path="src/Modules/Identity/HRM.Modules.Identity.Domain/HRM.Modules.Identity.Domain.csproj" Id="5ec141ff-8ce8-4373-be2b-3c2c8e1aaf08" />
+    <Project Path="src/Modules/Identity/HRM.Modules.Identity.Infrastructure/HRM.Modules.Identity.Infrastructure.csproj" Id="131479c8-0041-46ae-8d59-2045566edee9" />
+  </Folder>
+  <Folder Name="/src/Modules/Organization/">
+    <Project Path="src/Modules/Organization/HRM.Modules.Organization.Api/HRM.Modules.Organization.Api.csproj" Id="dc344f58-4c13-4459-a0a5-a5cbb702b943" />
+    <Project Path="src/Modules/Organization/HRM.Modules.Organization.Application/HRM.Modules.Organization.Application.csproj" Id="8ff83e96-f920-4a9b-9280-c24216c37179" />
+    <Project Path="src/Modules/Organization/HRM.Modules.Organization.Domain/HRM.Modules.Organization.Domain.csproj" Id="5b33a0fe-5e38-42cc-bb47-8153669dd907" />
+    <Project Path="src/Modules/Organization/HRM.Modules.Organization.Infrastructure/HRM.Modules.Organization.Infrastructure.csproj" Id="ffd67cfd-02b6-4d12-a0e7-32a4a28d7723" />
+  </Folder>
+  <Folder Name="/src/Modules/Personnel/">
+    <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Api/HRM.Modules.Personnel.Api.csproj" Id="6199ddcb-57d3-4295-8b6e-79ddf120861f" />
+    <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Application/HRM.Modules.Personnel.Application.csproj" Id="383a3b0d-95f2-45fe-946a-0aad5971fafe" />
+    <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Domain/HRM.Modules.Personnel.Domain.csproj" Id="612ebc8f-3bbd-42b6-b665-f3147458bf40" />
+    <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Infrastructure/HRM.Modules.Personnel.Infrastructure.csproj" Id="d30f57e8-5c9b-4ee5-8aa9-7d09a9300451" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/HRM.Shared.Kernel/HRM.Shared.Kernel.csproj" Id="1a60b6d2-c291-40eb-b24a-be0202be73dd" />
+  </Folder>
 </Solution>
