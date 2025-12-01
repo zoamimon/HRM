@@ -28,6 +28,7 @@
     <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Infrastructure/HRM.Modules.Personnel.Infrastructure.csproj" Id="d30f57e8-5c9b-4ee5-8aa9-7d09a9300451" />
   </Folder>
   <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/HRM.Shared.IntegrationEvents/HRM.Shared.IntegrationEvents.csproj" Id="200fb4b5-ed6b-4d91-8518-ac522cd595bd" />
     <Project Path="src/Shared/HRM.Shared.Kernel/HRM.Shared.Kernel.csproj" Id="1a60b6d2-c291-40eb-b24a-be0202be73dd" />
   </Folder>
 </Solution>
