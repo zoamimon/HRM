@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRM.Modules.Identity.Application\HRM.Modules.Identity.Application.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Identity.Domain\HRM.Modules.Identity.Domain.csproj" />
+  </ItemGroup>
+
 </Project>
