@@ -1,3 +1,4 @@
+using HRM.Shared.Kernel.Exceptions;
 using MediatR;
 
 namespace HRM.Modules.Personnel.Application.Features.Employees.Commands
@@ -22,7 +23,7 @@ namespace HRM.Modules.Personnel.Application.Features.Employees.Commands
         public async Task Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
         {
             var employee = await _context.Employees.FindAsync(request.EmployeeId);
-            if (employee == null) throw new Exception("Employee not found.");
+            if (employee == null) throw new NotFoundException("Employee not found.");
 
             employee.Update(request.FirstName, request.LastName, request.Email);
 

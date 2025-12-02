@@ -1,4 +1,5 @@
 using HRM.Modules.Personnel.Application.DAL;
+using HRM.Modules.Personnel.Application.Services;
 using HRM.Shared.Kernel.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -18,17 +19,17 @@ namespace HRM.Modules.Personnel.Application.Features.Employees.Commands
     public class AssignEmployeeRoleCommandHandler : IRequestHandler<AssignEmployeeRoleCommand, Guid>
     {
         private readonly IPersonnelDbContext _context;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IOrganizationService _organizationService;
 
-        public AssignEmployeeRoleCommandHandler(IPersonnelDbContext context, IHttpClientFactory httpClientFactory)
+        public AssignEmployeeRoleCommandHandler(IPersonnelDbContext context, IOrganizationService organizationService)
         {
             _context = context;
-            _httpClientFactory = httpClientFactory;
+            _organizationService = organizationService;
         }
 
         public async Task<Guid> Handle(AssignEmployeeRoleCommand request, CancellationToken cancellationToken)
         {
-            var isValidAssignment = await IsValidAssignment(request.CompanyId, request.DepartmentId, request.PositionId);
+            var isValidAssignment = await _organizationService.IsValidAssignmentAsync(request.CompanyId, request.DepartmentId, request.PositionId);
             if (!isValidAssignment)
             {
                 throw new ValidationException(new List<string> { "The provided combination of Company, Department, and Position is not valid." });
@@ -49,21 +50,6 @@ namespace HRM.Modules.Personnel.Application.Features.Employees.Commands
 
             var newAssignment = employee.Assignments.OrderByDescending(a => a.StartDate).First();
             return newAssignment.Id;
-        }
-
-        private async Task<bool> IsValidAssignment(Guid companyId, Guid departmentId, Guid positionId)
-        {
-            // In a real system, this might make a call to the Organization module API
-            // For now, we'll assume it's always valid.
-            // var client = _httpClientFactory.CreateClient("OrganizationApi"); 
-            // var response = await client.GetAsync($"/api/organization/positions/validate?companyId={companyId}&departmentId={departmentId}&positionId={positionId}");
-            // return response.IsSuccessStatusCode;
-            return await Task.FromResult(true);
-        }
-
-        private class ValidationResponse
-        {
-            public bool IsValid { get; set; }
         }
     }
 }
