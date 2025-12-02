@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRM.Modules.Personnel.Application\HRM.Modules.Personnel.Application.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Personnel.Domain\HRM.Modules.Personnel.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

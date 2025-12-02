@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRM.Modules.Personnel.Application\HRM.Modules.Personnel.Application.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Personnel.Infrastructure\HRM.Modules.Personnel.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

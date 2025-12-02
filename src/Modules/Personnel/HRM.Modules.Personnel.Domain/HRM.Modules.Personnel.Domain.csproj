@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\HRM.Shared.Kernel\HRM.Shared.Kernel.csproj" />
+  </ItemGroup>
+
 </Project>
