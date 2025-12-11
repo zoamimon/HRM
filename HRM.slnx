@@ -1,6 +1,10 @@
 <Solution>
   <Folder Name="/database/" />
-  <Folder Name="/database/Scripts/" />
+  <Folder Name="/database/Scripts/">
+    <File Path="database/Scripts/1_Identity.sql" />
+    <File Path="database/Scripts/2_Organization.sql" />
+    <File Path="database/Scripts/3_Personnel.sql" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
