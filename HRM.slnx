@@ -27,6 +27,9 @@
     <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Domain/HRM.Modules.Personnel.Domain.csproj" Id="612ebc8f-3bbd-42b6-b665-f3147458bf40" />
     <Project Path="src/Modules/Personnel/HRM.Modules.Personnel.Infrastructure/HRM.Modules.Personnel.Infrastructure.csproj" Id="d30f57e8-5c9b-4ee5-8aa9-7d09a9300451" />
   </Folder>
+  <Folder Name="/src/Modules/Scheduler/">
+    <Project Path="src/Modules/Scheduler/HRM.Modules.Scheduler/HRM.Modules.Scheduler.csproj" Id="477425af-6b14-4c88-be8d-a7b15abdd022" />
+  </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/HRM.Shared.IntegrationEvents/HRM.Shared.IntegrationEvents.csproj" Id="200fb4b5-ed6b-4d91-8518-ac522cd595bd" />
     <Project Path="src/Shared/HRM.Shared.Kernel/HRM.Shared.Kernel.csproj" Id="1a60b6d2-c291-40eb-b24a-be0202be73dd" />

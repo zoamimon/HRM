@@ -7,7 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.15.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Identity\HRM.Modules.Identity.Api\HRM.Modules.Identity.Api.csproj" />
+    <ProjectReference Include="..\Modules\Organization\HRM.Modules.Organization.Api\HRM.Modules.Organization.Api.csproj" />
+    <ProjectReference Include="..\Modules\Personnel\HRM.Modules.Personnel.Api\HRM.Modules.Personnel.Api.csproj" />
+    <ProjectReference Include="..\Modules\Scheduler\HRM.Modules.Scheduler\HRM.Modules.Scheduler.csproj" />
+    <ProjectReference Include="..\Shared\HRM.Shared.Kernel\HRM.Shared.Kernel.csproj" />
   </ItemGroup>
 
 </Project>
