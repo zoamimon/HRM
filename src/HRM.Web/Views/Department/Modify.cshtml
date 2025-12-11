@@ -1,0 +1,72 @@
+@model HRM.Web.ViewModels.DepartmentViewModel
+
+@{
+    var isEditMode = Model.DepartmentId != Guid.Empty;
+    ViewData["Title"] = isEditMode ? "Edit Department" : "Create Department";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="@(isEditMode ? "Edit" : "Create")" asp-route-id="@Model.DepartmentId">
+            <input type="hidden" asp-for="DepartmentId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group mb-2">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-2">
+                <label asp-for="CompanyId" class="control-label">Company</label>
+                <select asp-for="CompanyId" id="companyDropdown" class="form-control" asp-items="ViewBag.CompanyId">
+                    <option value="">-- Select Company --</option>
+                </select>
+                <span asp-validation-for="CompanyId" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-2">
+                <label asp-for="ParentId" class="control-label">Parent Department</label>
+                <select asp-for="ParentId" id="parentDepartmentDropdown" class="form-control" asp-items="ViewBag.ParentId">
+                    <option value="">-- None --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="@(isEditMode ? "Save" : "Create")" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        $(document).ready(function () {
+            $('#companyDropdown').change(function () {
+                var companyId = $(this).val();
+                var departmentDropdown = $('#parentDepartmentDropdown');
+                departmentDropdown.empty().append('<option value="">-- Loading... --</option>');
+
+                if (companyId) {
+                    $.getJSON('/Department/GetDepartmentsByCompany?companyId=' + companyId, function (data) {
+                        departmentDropdown.empty().append('<option value="">-- None --</option>');
+                        $.each(data, function (index, item) {
+                            departmentDropdown.append($('<option>', {
+                                value: item.value,
+                                text: item.text
+                            }));
+                        });
+                    });
+                } else {
+                    departmentDropdown.empty().append('<option value="">-- None --</option>');
+                }
+            });
+        });
+    </script>
+}

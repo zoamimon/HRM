@@ -1,0 +1,140 @@
+@model HRM.Web.ViewModels.EmployeeAssignmentViewModel
+
+@{
+    ViewData["Title"] = "Manage Assignments for " + Model.EmployeeName;
+}
+
+<h2>@ViewData["Title"]</h2>
+<hr />
+
+<h3>Current & Past Assignments</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Company</th>
+            <th>Department</th>
+            <th>Position</th>
+            <th>Is Primary?</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (!Model.Assignments.Any())
+        {
+            <tr>
+                <td colspan="7" class="text-center">No assignments found.</td>
+            </tr>
+        }
+        else
+        {
+            foreach (var item in Model.Assignments)
+            {
+                <tr>
+                    <td>@item.CompanyName</td>
+                    <td>@item.DepartmentName</td>
+                    <td>@item.PositionName</td>
+                    <td>@item.IsPrimary</td>
+                    <td>@item.StartDate</td>
+                    <td>@item.EndDate</td>
+                    <td>
+                        @if (item.EndDate == null)
+                        {
+                            <form asp-action="EndAssignment" asp-route-employeeId="@Model.EmployeeId" asp-route-assignmentId="@item.AssignmentId" method="post">
+                                <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Are you sure you want to end this assignment?');">End Assignment</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Add New Assignment</h3>
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="AddAssignment" asp-route-employeeId="@Model.EmployeeId">
+            <div class="form-group mb-2">
+                <label asp-for="NewAssignment.SelectedCompanyId" class="control-label">Company</label>
+                <select asp-for="NewAssignment.SelectedCompanyId" class="form-control" asp-items="Model.NewAssignment.Companies" id="companyDropdown">
+                    <option value="">-- Select Company --</option>
+                </select>
+            </div>
+            <div class="form-group mb-2">
+                <label asp-for="NewAssignment.SelectedDepartmentId" class="control-label">Department</label>
+                <select asp-for="NewAssignment.SelectedDepartmentId" class="form-control" asp-items="Model.NewAssignment.Departments" id="departmentDropdown">
+                    <option value="">-- Select Department --</option>
+                </select>
+            </div>
+            <div class="form-group mb-2">
+                <label asp-for="NewAssignment.SelectedPositionId" class="control-label">Position</label>
+                <select asp-for="NewAssignment.SelectedPositionId" class="form-control" asp-items="Model.NewAssignment.Positions" id="positionDropdown">
+                    <option value="">-- Select Position --</option>
+                </select>
+            </div>
+            <div class="form-group mb-2">
+                <label asp-for="NewAssignment.StartDate" class="control-label"></label>
+                <input asp-for="NewAssignment.StartDate" type="date" class="form-control" />
+            </div>
+            <div class="form-group form-check mb-2">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="NewAssignment.IsPrimary" /> @Html.DisplayNameFor(model => model.NewAssignment.IsPrimary)
+                </label>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Add Assignment" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#companyDropdown').change(function () {
+                var companyId = $(this).val();
+                var departmentDropdown = $('#departmentDropdown');
+                departmentDropdown.empty().append('<option value="">-- Loading... --</option>');
+                $('#positionDropdown').empty().append('<option value="">-- Select Position --</option>');
+
+                if (companyId) {
+                    $.getJSON('/Employee/GetDepartmentsByCompany?companyId=' + companyId, function (data) {
+                        departmentDropdown.empty().append('<option value="">-- Select Department --</option>');
+                        $.each(data, function (index, item) {
+                            departmentDropdown.append($('<option>', {
+                                value: item.value,
+                                text: item.text
+                            }));
+                        });
+                    });
+                } else {
+                    departmentDropdown.empty().append('<option value="">-- Select Department --</option>');
+                }
+            });
+
+            $('#departmentDropdown').change(function () {
+                var departmentId = $(this).val();
+                var positionDropdown = $('#positionDropdown');
+                positionDropdown.empty().append('<option value="">-- Loading... --</option>');
+
+                if (departmentId) {
+                    $.getJSON('/Employee/GetPositionsByDepartment?departmentId=' + departmentId, function (data) {
+                        positionDropdown.empty().append('<option value="">-- Select Position --</option>');
+                        $.each(data, function (index, item) {
+                            positionDropdown.append($('<option>', {
+                                value: item.value,
+                                text: item.text
+                            }));
+                        });
+                    });
+                } else {
+                    positionDropdown.empty().append('<option value="">-- Select Position --</option>');
+                }
+            });
+        });
+    </script>
+}

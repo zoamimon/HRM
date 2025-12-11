@@ -1,7 +1,30 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using HRM.Web;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+    });
+
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<AuthDelegatingHandler>();
+
+builder.Services.AddHttpClient("HRMApi", client =>
+    {
+        var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
+        if (string.IsNullOrEmpty(baseUrl))
+        {
+            throw new InvalidOperationException("API BaseUrl is not configured.");
+        }
+        client.BaseAddress = new Uri(baseUrl);
+    })
+    .AddHttpMessageHandler<AuthDelegatingHandler>();
 
 var app = builder.Build();
 
@@ -9,20 +32,18 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+
 app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapStaticAssets();
-
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{controller=Company}/{action=Index}/{id?}");
 
 app.Run();
