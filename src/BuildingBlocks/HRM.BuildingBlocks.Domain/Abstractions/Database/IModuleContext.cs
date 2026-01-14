@@ -1,4 +1,4 @@
-namespace HRM.BuildingBlocks.Domain.Database;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Database;
 
 /// <summary>
 /// Pure domain interface for module context

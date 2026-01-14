@@ -1,6 +1,6 @@
-using HRM.BuildingBlocks.Domain.Database;
+using HRM.BuildingBlocks.Domain.Abstractions.Database;
 
-namespace HRM.BuildingBlocks.Domain.UnitOfWork;
+namespace HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 
 /// <summary>
 /// Unit of Work pattern interface

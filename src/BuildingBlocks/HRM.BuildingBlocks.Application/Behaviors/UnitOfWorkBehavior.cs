@@ -1,5 +1,5 @@
 using HRM.BuildingBlocks.Application.Abstractions.Commands;
-using HRM.BuildingBlocks.Domain.UnitOfWork;
+using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using MediatR;
 
 namespace HRM.BuildingBlocks.Application.Behaviors;

@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace HRM.BuildingBlocks.Domain.Events;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Events;
 
 /// <summary>
 /// Interface for integration events (cross-module communication)

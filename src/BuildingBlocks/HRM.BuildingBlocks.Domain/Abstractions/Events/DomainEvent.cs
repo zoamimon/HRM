@@ -1,4 +1,4 @@
-namespace HRM.BuildingBlocks.Domain.Events;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Events;
 
 /// <summary>
 /// Base class for domain events

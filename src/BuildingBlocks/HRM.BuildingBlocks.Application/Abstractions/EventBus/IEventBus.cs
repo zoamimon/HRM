@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Events;
+using HRM.BuildingBlocks.Domain.Abstractions.Events;
 
 namespace HRM.BuildingBlocks.Application.Abstractions.EventBus;
 
