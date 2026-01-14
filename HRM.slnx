@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/HRM.BuildingBlocks.Application/HRM.BuildingBlocks.Application.csproj" Id="a05d7620-d229-414c-becb-d78913f27d66" />
     <Project Path="src/BuildingBlocks/HRM.BuildingBlocks.Domain/HRM.BuildingBlocks.Domain.csproj" Id="8cd342a9-f28d-4bd4-a410-6b375e14455a" />
   </Folder>
 </Solution>
