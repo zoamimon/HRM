@@ -55,7 +55,7 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// - Supports event versioning (different versions in different assemblies)
     /// - Allows type resolution across assembly boundaries
     /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public string Type { get; private set; } = string.Empty;
 
@@ -77,13 +77,32 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     ///   "Email": "admin@example.com"
     /// }
     /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public string Content { get; private set; } = string.Empty;
 
     /// <summary>
     /// When the event originally occurred in the domain
-    /// Not when the OutboxMessage was created, but when the domain event happened
+    /// NOT when the OutboxMessage was created, but when the domain event happened
+    /// 
+    /// ✅ CRITICAL: This is passed from IntegrationEvent.OccurredOnUtc
+    ///    NOT DateTime.UtcNow in OutboxMessage.Create()
+    /// 
+    /// Event Timeline Example:
+    /// - 10:30:00.000 → Operator.Register() executes (domain operation)
+    /// - 10:30:00.001 → OperatorRegisteredDomainEvent raised (OccurredOnUtc = 10:30:00.000)
+    /// - 10:30:00.050 → Domain event handler creates OperatorRegisteredIntegrationEvent
+    ///                  (OccurredOnUtc = domainEvent.OccurredOnUtc = 10:30:00.000)
+    /// - 10:30:00.100 → OutboxMessage.Create called with integrationEvent.OccurredOnUtc
+    ///                  (OccurredOnUtc = 10:30:00.000) ✅ CORRECT
+    /// - 10:30:00.200 → Transaction commits
+    /// - 10:30:15.000 → Background service processes message
+    /// 
+    /// Why Important:
+    /// - Event Ordering: Background service processes in OccurredOnUtc order
+    /// - Causality: Track which domain event caused which integration event
+    /// - Audit Trail: Know exact time of business operation
+    /// - Debugging: Reconstruct event timeline accurately
     /// 
     /// Used for:
     /// - Ordering: Background service processes in chronological order
@@ -91,13 +110,7 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// - Debugging: Trace event timeline
     /// - Auditing: Track business operation timing
     /// 
-    /// Example:
-    /// - OperatorRegistered at 10:30:00
-    /// - OutboxMessage created at 10:30:00.123 (same transaction)
-    /// - OutboxMessage processed at 10:30:15 (background service)
-    /// - But OccurredOnUtc = 10:30:00 (domain event time)
-    /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public DateTime OccurredOnUtc { get; private set; }
 
@@ -113,7 +126,7 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// - WHERE ProcessedOnUtc IS NOT NULL (get processed)
     /// - WHERE ProcessedOnUtc > @SomeDate (cleanup old processed)
     /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public DateTime? ProcessedOnUtc { get; private set; }
 
@@ -138,7 +151,7 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// 
     /// Max length: 2000 characters (configured in EF configuration)
     /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public string? Error { get; private set; }
 
@@ -164,7 +177,7 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// - WHERE AttemptCount < @MaxAttempts (get retry candidates)
     /// - WHERE AttemptCount >= @MaxAttempts (get dead letter)
     /// 
-    /// ✅ FIXED: Public property with private set (EF Core compatible)
+    /// ✅ Public property with private set (EF Core compatible)
     /// </summary>
     public int AttemptCount { get; private set; }
 
@@ -181,16 +194,47 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
     /// Factory method to create a new outbox message
     /// Enforces invariants and ensures valid creation
     /// 
+    /// ✅ FIXED: Now accepts occurredOnUtc from IntegrationEvent
+    ///    instead of using DateTime.UtcNow
+    /// 
     /// Private constructor + factory pattern ensures:
     /// - Cannot create invalid OutboxMessage
     /// - All required data must be provided
     /// - Consistent initialization
+    /// - Proper event timing preserved
+    /// 
+    /// Usage Example:
+    /// <code>
+    /// // In domain event handler
+    /// var integrationEvent = new OperatorRegisteredIntegrationEvent
+    /// {
+    ///     Id = Guid.NewGuid(),
+    ///     OccurredOnUtc = domainEvent.OccurredOnUtc,  // ← From domain event
+    ///     OperatorId = domainEvent.OperatorId,
+    ///     Username = domainEvent.Username,
+    ///     Email = domainEvent.Email
+    /// };
+    /// 
+    /// var json = JsonSerializer.Serialize(integrationEvent);
+    /// 
+    /// var outboxMessage = OutboxMessage.Create(
+    ///     type: integrationEvent.GetType().AssemblyQualifiedName!,
+    ///     content: json,
+    ///     occurredOnUtc: integrationEvent.OccurredOnUtc  // ← Pass event time
+    /// );
+    /// 
+    /// await dbContext.OutboxMessages.AddAsync(outboxMessage);
+    /// </code>
     /// </summary>
     /// <param name="type">Full type name of the integration event</param>
     /// <param name="content">Serialized JSON content</param>
+    /// <param name="occurredOnUtc">When the domain event occurred (from IntegrationEvent)</param>
     /// <returns>New outbox message ready to be saved</returns>
     /// <exception cref="ArgumentException">If type or content is null/empty</exception>
-    public static OutboxMessage Create(string type, string content)
+    public static OutboxMessage Create(
+        string type,
+        string content,
+        DateTime occurredOnUtc)
     {
         // Validation
         if (string.IsNullOrWhiteSpace(type))
@@ -199,13 +243,13 @@ public sealed class OutboxMessage : Entity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(content))
             throw new ArgumentException("Content cannot be null or empty", nameof(content));
 
-        // Create new message
+        // Create new message with event's original timestamp
         return new OutboxMessage
         {
             Id = Guid.NewGuid(),
             Type = type,
             Content = content,
-            OccurredOnUtc = DateTime.UtcNow,
+            OccurredOnUtc = occurredOnUtc,  // ✅ From integration event, NOT DateTime.UtcNow
             ProcessedOnUtc = null,
             Error = null,
             AttemptCount = 0

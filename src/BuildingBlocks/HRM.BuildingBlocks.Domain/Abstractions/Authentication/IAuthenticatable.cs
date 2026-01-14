@@ -1,6 +1,6 @@
 using HRM.BuildingBlocks.Domain.Enums;
 
-namespace HRM.BuildingBlocks.Domain.Security;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 
 /// <summary>
 /// Interface for authenticatable entities (Operator and User)
