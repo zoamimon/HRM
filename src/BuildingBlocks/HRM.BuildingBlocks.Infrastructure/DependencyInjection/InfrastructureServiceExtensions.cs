@@ -1,0 +1,252 @@
+using System.Text;
+using HRM.BuildingBlocks.Application.Abstractions.Authentication;
+using HRM.BuildingBlocks.Application.Abstractions.Data;
+using HRM.BuildingBlocks.Application.Abstractions.EventBus;
+using HRM.BuildingBlocks.Infrastructure.Authentication;
+using HRM.BuildingBlocks.Infrastructure.Authorization;
+using HRM.BuildingBlocks.Infrastructure.EventBus;
+using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+
+namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
+
+/// <summary>
+/// Extension methods for registering infrastructure services
+/// Provides centralized registration for all BuildingBlocks.Infrastructure components
+///
+/// Usage in Program.cs or Module registration:
+/// <code>
+/// // Register BuildingBlocks infrastructure services
+/// services.AddBuildingBlocksInfrastructure(configuration);
+///
+/// // Register JWT authentication
+/// services.AddJwtAuthentication(configuration);
+///
+/// // Register module-specific DbContext with interceptors
+/// services.AddDbContext<IdentityDbContext>(options =>
+/// {
+///     options.UseSqlServer(connectionString);
+///     options.AddInterceptors(
+///         services.BuildServiceProvider().GetRequiredService<AuditInterceptor>()
+///     );
+/// });
+/// </code>
+///
+/// What Gets Registered:
+/// - IEventBus → InMemoryEventBus (singleton)
+/// - ICurrentUserService → CurrentUserService (scoped)
+/// - IPasswordHasher → PasswordHasher (singleton)
+/// - ITokenService → TokenService (singleton)
+/// - IDataScopingService → DataScopingService (scoped)
+/// - AuditInterceptor (singleton)
+/// - JwtOptions (from configuration)
+/// - HttpContextAccessor (for CurrentUserService)
+///
+/// Not Registered Here:
+/// - Module-specific DbContexts (registered per module)
+/// - OutboxProcessor (registered per module as hosted service)
+/// - Repositories (registered per module)
+/// </summary>
+public static class InfrastructureServiceExtensions
+{
+    /// <summary>
+    /// Register all BuildingBlocks infrastructure services
+    ///
+    /// Services Registered:
+    /// - Event Bus (InMemoryEventBus)
+    /// - Authentication services (CurrentUserService, PasswordHasher, TokenService)
+    /// - Authorization services (DataScopingService)
+    /// - EF Core interceptors (AuditInterceptor)
+    /// - HttpContextAccessor
+    /// - JWT options
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="configuration">Application configuration</param>
+    /// <returns>Service collection for chaining</returns>
+    public static IServiceCollection AddBuildingBlocksInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Event Bus (In-Memory for modular monolith)
+        services.AddSingleton<IEventBus, InMemoryEventBus>();
+
+        // HTTP Context Accessor (required for CurrentUserService)
+        services.AddHttpContextAccessor();
+
+        // Authentication Services
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<ITokenService, TokenService>();
+
+        // Authorization Services
+        services.AddScoped<IDataScopingService, DataScopingService>();
+
+        // EF Core Interceptors
+        services.AddSingleton<AuditInterceptor>();
+
+        // JWT Options
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName)
+        );
+
+        return services;
+    }
+
+    /// <summary>
+    /// Register JWT authentication middleware
+    /// Configures JWT bearer authentication with validation parameters
+    ///
+    /// Configuration Required (appsettings.json):
+    /// <code>
+    /// {
+    ///   "JwtSettings": {
+    ///     "SecretKey": "your-256-bit-secret-key-min-32-characters",
+    ///     "Issuer": "HRM.Api",
+    ///     "Audience": "HRM.Clients",
+    ///     "AccessTokenExpiryMinutes": 15,
+    ///     "RefreshTokenExpiryDays": 7
+    ///   }
+    /// }
+    /// </code>
+    ///
+    /// Usage in Program.cs:
+    /// <code>
+    /// // Register authentication
+    /// services.AddJwtAuthentication(configuration);
+    ///
+    /// // Use authentication middleware (before authorization)
+    /// app.UseAuthentication();
+    /// app.UseAuthorization();
+    /// </code>
+    ///
+    /// Token Validation:
+    /// - Validates signature using secret key
+    /// - Validates issuer matches configuration
+    /// - Validates audience matches configuration
+    /// - Validates token not expired
+    /// - Validates token lifetime
+    ///
+    /// Claims:
+    /// - Populates HttpContext.User.Claims from JWT
+    /// - CurrentUserService reads from HttpContext.User
+    /// </summary>
+    /// <param name="services">Service collection</param>
+    /// <param name="configuration">Application configuration</param>
+    /// <returns>Service collection for chaining</returns>
+    public static IServiceCollection AddJwtAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Get JWT settings from configuration
+        var jwtSettings = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+
+        if (jwtSettings is null)
+        {
+            throw new InvalidOperationException(
+                $"JWT settings not found in configuration. " +
+                $"Ensure '{JwtOptions.SectionName}' section exists in appsettings.json"
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+        {
+            throw new InvalidOperationException(
+                "JWT SecretKey is not configured. " +
+                "Set JwtSettings:SecretKey in appsettings.json or environment variables."
+            );
+        }
+
+        if (jwtSettings.SecretKey.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "JWT SecretKey must be at least 32 characters (256 bits) for HMAC-SHA256. " +
+                $"Current length: {jwtSettings.SecretKey.Length}"
+            );
+        }
+
+        // Configure JWT Bearer authentication
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = true; // Enforce HTTPS in production
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                // Validate signature
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtSettings.SecretKey)
+                ),
+
+                // Validate issuer
+                ValidateIssuer = true,
+                ValidIssuer = jwtSettings.Issuer,
+
+                // Validate audience
+                ValidateAudience = true,
+                ValidAudience = jwtSettings.Audience,
+
+                // Validate token expiration
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero // No clock skew tolerance
+            };
+
+            // Configure event handlers
+            options.Events = new JwtBearerEvents
+            {
+                OnAuthenticationFailed = context =>
+                {
+                    // Log authentication failures
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<Microsoft.Extensions.Logging.ILogger<JwtBearerEvents>>();
+
+                    logger.LogWarning(
+                        context.Exception,
+                        "JWT authentication failed: {Reason}",
+                        context.Exception.Message
+                    );
+
+                    return Task.CompletedTask;
+                },
+
+                OnTokenValidated = context =>
+                {
+                    // Optional: Additional validation logic
+                    // Example: Check if user is active in database
+                    return Task.CompletedTask;
+                }
+            };
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Helper method to get EF Core interceptor for DbContext configuration
+    /// Use this when registering module DbContexts
+    ///
+    /// Usage:
+    /// <code>
+    /// services.AddDbContext<IdentityDbContext>((serviceProvider, options) =>
+    /// {
+    ///     options.UseSqlServer(connectionString);
+    ///     options.AddInterceptors(serviceProvider.GetAuditInterceptor());
+    /// });
+    /// </code>
+    /// </summary>
+    /// <param name="serviceProvider">Service provider</param>
+    /// <returns>AuditInterceptor instance</returns>
+    public static ISaveChangesInterceptor GetAuditInterceptor(this IServiceProvider serviceProvider)
+    {
+        return serviceProvider.GetRequiredService<AuditInterceptor>();
+    }
+}
