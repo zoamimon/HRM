@@ -2,6 +2,7 @@ using System.Text.Json;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Domain.Abstractions.Events;
 using HRM.BuildingBlocks.Domain.Outbox;
+using HRM.BuildingBlocks.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -269,10 +270,10 @@ public abstract class OutboxProcessor : BackgroundService
     }
 
     /// <summary>
-    /// Get DbContext from service provider
+    /// Get ModuleDbContext from service provider
     /// Must be implemented by derived class for each module
     /// </summary>
     /// <param name="serviceProvider">Service provider from current scope</param>
-    /// <returns>Module's DbContext</returns>
-    protected abstract DbContext GetDbContext(IServiceProvider serviceProvider);
+    /// <returns>Module's DbContext (must inherit from ModuleDbContext)</returns>
+    protected abstract ModuleDbContext GetDbContext(IServiceProvider serviceProvider);
 }

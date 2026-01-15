@@ -59,23 +59,23 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         // Index for finding unprocessed messages
         // Query: WHERE ProcessedOnUtc IS NULL
+        // Comment: Optimizes queries for unprocessed messages
         builder.HasIndex(e => e.ProcessedOnUtc)
             .HasDatabaseName("IX_OutboxMessages_ProcessedOnUtc")
-            .HasFilter("[ProcessedOnUtc] IS NULL")
-            .HasComment("Optimizes queries for unprocessed messages");
+            .HasFilter("[ProcessedOnUtc] IS NULL");
 
         // Index for ordering by occurrence time
         // Query: ORDER BY OccurredOnUtc
+        // Comment: Optimizes ordering by event occurrence time
         builder.HasIndex(e => e.OccurredOnUtc)
-            .HasDatabaseName("IX_OutboxMessages_OccurredOnUtc")
-            .HasComment("Optimizes ordering by event occurrence time");
+            .HasDatabaseName("IX_OutboxMessages_OccurredOnUtc");
 
         // Composite index for finding retryable messages
         // Query: WHERE ProcessedOnUtc IS NULL AND AttemptCount < @MaxAttempts ORDER BY OccurredOnUtc
+        // Comment: Optimizes queries for finding and ordering retryable messages
         builder.HasIndex(e => new { e.ProcessedOnUtc, e.AttemptCount, e.OccurredOnUtc })
             .HasDatabaseName("IX_OutboxMessages_Processing")
-            .HasFilter("[ProcessedOnUtc] IS NULL")
-            .HasComment("Optimizes queries for finding and ordering retryable messages");
+            .HasFilter("[ProcessedOnUtc] IS NULL");
 
         // Audit fields from Entity base class
         builder.Property(e => e.CreatedAtUtc)
