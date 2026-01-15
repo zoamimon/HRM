@@ -59,10 +59,13 @@ public static class InfrastructureServiceExtensions
     /// Services Registered:
     /// - Event Bus (InMemoryEventBus)
     /// - Authentication services (CurrentUserService, PasswordHasher, TokenService)
-    /// - Authorization services (DataScopingService)
     /// - EF Core interceptors (AuditInterceptor)
     /// - HttpContextAccessor
     /// - JWT options
+    ///
+    /// Services NOT Registered (Module Responsibility):
+    /// - IDataScopingService: Requires IDbConnection which is module-specific
+    /// - IDbConnection: Each module must register with own connection string
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Application configuration</param>
@@ -83,7 +86,11 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<ITokenService, TokenService>();
 
         // Authorization Services
-        services.AddScoped<IDataScopingService, DataScopingService>();
+        // NOTE: DataScopingService requires IDbConnection which must be registered at module level
+        // Each module should register its own DataScopingService with module-specific IDbConnection:
+        // services.AddScoped<IDataScopingService, DataScopingService>();
+        // services.AddScoped<IDbConnection>(sp =>
+        //     new SqlConnection(configuration.GetConnectionString("ModuleDb")));
 
         // EF Core Interceptors
         services.AddSingleton<AuditInterceptor>();
