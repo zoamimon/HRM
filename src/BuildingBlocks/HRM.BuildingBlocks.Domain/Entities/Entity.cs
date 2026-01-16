@@ -164,9 +164,12 @@ public abstract class Entity : ISoftDeletable
     /// Set the creator ID
     /// Called automatically by AuditInterceptor on entity creation
     /// Should NOT be called manually in domain logic
+    ///
+    /// Note: Public to allow Infrastructure layer (AuditInterceptor) to set this value.
+    /// However, this should ONLY be called by infrastructure code, not by domain logic.
     /// </summary>
     /// <param name="createdById">ID of user/operator creating the entity</param>
-    internal void SetCreatedBy(Guid createdById)
+    public void SetCreatedBy(Guid createdById)
     {
         CreatedById = createdById;
     }
