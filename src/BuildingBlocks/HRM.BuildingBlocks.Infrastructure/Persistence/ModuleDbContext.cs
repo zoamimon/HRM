@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using HRM.BuildingBlocks.Domain.Abstractions.Events;
+using HRM.BuildingBlocks.Domain.Abstractions.SoftDelete;
 using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Outbox;
@@ -137,34 +139,17 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
     }
 
     /// <summary>
-    /// Override SaveChangesAsync to update audit fields
+    /// Override SaveChangesAsync - audit fields handled by AuditInterceptor
     /// This is called by CommitAsync and can also be called directly by background services
+    ///
+    /// Note: Audit field updates (CreatedById, ModifiedById, ModifiedAtUtc) are now
+    /// handled by AuditInterceptor which is registered as an EF Core SaveChangesInterceptor.
+    /// The interceptor has access to ICurrentUserService for user tracking.
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // Update audit timestamps before saving
-        UpdateAuditFields();
-
+        // Audit updates handled by AuditInterceptor
         return await base.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Update audit fields (CreatedAtUtc, ModifiedAtUtc) for tracked entities
-    /// Called automatically before SaveChanges
-    /// </summary>
-    private void UpdateAuditFields()
-    {
-        var entries = ChangeTracker.Entries<Entity>();
-
-        foreach (var entry in entries)
-        {
-            // Only update ModifiedAtUtc for modified entities
-            // CreatedAtUtc is set in Entity constructor and never changed
-            if (entry.State == EntityState.Modified)
-            {
-                entry.Entity.MarkAsModified();
-            }
-        }
     }
 
     /// <summary>
@@ -201,5 +186,70 @@ public abstract class ModuleDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.OccurredOnUtc)
                 .HasDatabaseName("IX_OutboxMessages_OccurredOnUtc");
         });
+
+        // Configure global query filters for soft delete
+        // Automatically exclude soft-deleted entities from all queries
+        // Can be disabled per query with: query.IgnoreQueryFilters()
+        ConfigureSoftDeleteQueryFilter(modelBuilder);
+    }
+
+    /// <summary>
+    /// Configure global query filter to exclude soft-deleted entities
+    /// Applies to all entities implementing ISoftDeletable
+    ///
+    /// How It Works:
+    /// 1. Iterate through all entity types in the model
+    /// 2. Check if entity implements ISoftDeletable interface
+    /// 3. Build expression: e => e.IsDeleted == false
+    /// 4. Set as global query filter
+    ///
+    /// Effect:
+    /// - All queries automatically filter: WHERE IsDeleted = 0
+    /// - Applies to: Find, FirstOrDefault, Where, ToList, etc.
+    /// - Cascades to navigation properties
+    ///
+    /// Override Filter:
+    /// To include soft-deleted entities in specific queries:
+    /// <code>
+    /// var allEmployees = await context.Employees
+    ///     .IgnoreQueryFilters()  // Include soft-deleted
+    ///     .ToListAsync();
+    /// </code>
+    ///
+    /// Benefits:
+    /// - Prevents accidental access to deleted data
+    /// - Consistent behavior across application
+    /// - No manual WHERE clauses needed
+    /// - Safer than manual filtering
+    ///
+    /// Example Generated SQL:
+    /// <code>
+    /// -- Before (manual):
+    /// SELECT * FROM Employees WHERE IsDeleted = 0 AND Department = 'IT'
+    ///
+    /// -- After (automatic):
+    /// SELECT * FROM Employees WHERE IsDeleted = 0 AND Department = 'IT'
+    /// </code>
+    /// </summary>
+    /// <param name="modelBuilder">Model builder</param>
+    private void ConfigureSoftDeleteQueryFilter(ModelBuilder modelBuilder)
+    {
+        // Get all entity types that implement ISoftDeletable
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
+            {
+                // Build expression: e => e.IsDeleted == false
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var property = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
+                var filterExpression = Expression.Lambda(
+                    Expression.Equal(property, Expression.Constant(false)),
+                    parameter
+                );
+
+                // Set as global query filter
+                entityType.SetQueryFilter(filterExpression);
+            }
+        }
     }
 }

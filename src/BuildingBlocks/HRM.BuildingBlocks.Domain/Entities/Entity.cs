@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Events;
+using HRM.BuildingBlocks.Domain.Abstractions.SoftDelete;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
 
@@ -6,13 +7,18 @@ namespace HRM.BuildingBlocks.Domain.Entities;
 /// Base class for all domain entities
 /// Provides:
 /// - Identity (Id)
-/// - Audit trail (CreatedAtUtc, ModifiedAtUtc)
+/// - Enhanced audit trail (CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById)
+/// - Soft delete support (IsDeleted, DeletedAtUtc)
 /// - Domain event collection
-/// 
+///
 /// Entities are objects that have a distinct identity that runs through time and different states
 /// Two entities are equal if they have the same Id and type, regardless of their attribute values
+///
+/// New Features:
+/// - Enhanced Audit: Track WHO created/modified entities (CreatedById, ModifiedById)
+/// - Soft Delete: Logical deletion with ability to restore (ISoftDeletable)
 /// </summary>
-public abstract class Entity
+public abstract class Entity : ISoftDeletable
 {
     /// <summary>
     /// Private list to store domain events
@@ -40,6 +46,56 @@ public abstract class Entity
     /// Updated via MarkAsModified() method or EF Core interceptor
     /// </summary>
     public DateTime? ModifiedAtUtc { get; protected set; }
+
+    /// <summary>
+    /// Who created the entity (User/Operator ID)
+    /// NULL for system-created entities or legacy data
+    /// Set automatically by AuditInterceptor on entity creation
+    ///
+    /// Use Cases:
+    /// - Audit: Who created this employee record?
+    /// - Compliance: Track user actions for GDPR/regulations
+    /// - Analytics: Most active users creating records
+    /// - Security: Trace data origin for security investigations
+    /// </summary>
+    public Guid? CreatedById { get; protected set; }
+
+    /// <summary>
+    /// Who last modified the entity (User/Operator ID)
+    /// NULL if never modified or legacy data
+    /// Updated automatically by AuditInterceptor on entity modification
+    ///
+    /// Use Cases:
+    /// - Audit: Who last changed this record?
+    /// - Accountability: Track responsibility for changes
+    /// - Change History: Combined with ModifiedAtUtc for full audit
+    /// </summary>
+    public Guid? ModifiedById { get; protected set; }
+
+    /// <summary>
+    /// Indicates whether entity is soft-deleted
+    /// False = Active (default)
+    /// True = Deleted (hidden from normal queries)
+    ///
+    /// Soft Delete Benefits:
+    /// - Data recovery capability
+    /// - Audit trail preservation
+    /// - Maintains referential integrity
+    /// - Compliance with data retention policies
+    /// </summary>
+    public bool IsDeleted { get; protected set; }
+
+    /// <summary>
+    /// When the entity was soft-deleted (UTC)
+    /// NULL = Not deleted (active)
+    /// DateTime = Deletion timestamp
+    ///
+    /// Use Cases:
+    /// - Restore: Show user when they deleted it
+    /// - Cleanup: Permanently delete old soft-deleted records
+    /// - Audit: Deletion history
+    /// </summary>
+    public DateTime? DeletedAtUtc { get; protected set; }
 
     /// <summary>
     /// Read-only collection of domain events raised by this entity
@@ -84,14 +140,99 @@ public abstract class Entity
     }
 
     /// <summary>
-    /// Update modification timestamp
-    /// Can be called:
-    /// - Manually in domain logic
-    /// - Automatically by EF Core SaveChangesInterceptor
+    /// Update modification timestamp (backward compatibility)
+    /// Used by AuditInterceptor when user context is not available
     /// </summary>
     public void MarkAsModified()
     {
         ModifiedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Update modification timestamp and track who modified
+    /// Preferred method when user context is available
+    /// Called automatically by AuditInterceptor with current user ID
+    /// </summary>
+    /// <param name="modifiedById">ID of user/operator making the modification</param>
+    public void MarkAsModified(Guid modifiedById)
+    {
+        ModifiedAtUtc = DateTime.UtcNow;
+        ModifiedById = modifiedById;
+    }
+
+    /// <summary>
+    /// Set the creator ID
+    /// Called automatically by AuditInterceptor on entity creation
+    /// Should NOT be called manually in domain logic
+    /// </summary>
+    /// <param name="createdById">ID of user/operator creating the entity</param>
+    internal void SetCreatedBy(Guid createdById)
+    {
+        CreatedById = createdById;
+    }
+
+    /// <summary>
+    /// Performs soft delete operation
+    /// Marks entity as deleted without removing from database
+    ///
+    /// Can be overridden in derived classes to add:
+    /// - Business rule validation
+    /// - Domain events
+    /// - Cascade soft delete to child entities
+    ///
+    /// Example Override:
+    /// <code>
+    /// public override void Delete()
+    /// {
+    ///     if (HasActiveAssignments)
+    ///         throw new DomainException("Cannot delete employee with active assignments");
+    ///
+    ///     base.Delete();
+    ///     AddDomainEvent(new EmployeeDeletedDomainEvent(Id));
+    /// }
+    /// </code>
+    /// </summary>
+    public virtual void Delete()
+    {
+        if (IsDeleted)
+        {
+            throw new InvalidOperationException("Entity is already deleted");
+        }
+
+        IsDeleted = true;
+        DeletedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Restores a soft-deleted entity
+    /// Makes entity visible in queries again
+    ///
+    /// Can be overridden in derived classes to add:
+    /// - Business rule validation
+    /// - Domain events
+    /// - Cascade restore to child entities
+    ///
+    /// Example Override:
+    /// <code>
+    /// public override void Restore()
+    /// {
+    ///     if (!CanBeRestored())
+    ///         throw new DomainException("Entity cannot be restored at this time");
+    ///
+    ///     base.Restore();
+    ///     AddDomainEvent(new EmployeeRestoredDomainEvent(Id));
+    /// }
+    /// </code>
+    /// </summary>
+    public virtual void Restore()
+    {
+        if (!IsDeleted)
+        {
+            throw new InvalidOperationException("Entity is not deleted");
+        }
+
+        IsDeleted = false;
+        DeletedAtUtc = null;
     }
 
     /// <summary>
