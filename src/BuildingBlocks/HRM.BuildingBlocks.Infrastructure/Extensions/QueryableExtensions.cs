@@ -1,7 +1,7 @@
 using HRM.BuildingBlocks.Application.Pagination;
 using Microsoft.EntityFrameworkCore;
 
-namespace HRM.BuildingBlocks.Application.Extensions;
+namespace HRM.BuildingBlocks.Infrastructure.Extensions;
 
 /// <summary>
 /// Extension methods for IQueryable to support pagination
