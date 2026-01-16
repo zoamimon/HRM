@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Text;
 using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
+using HRM.BuildingBlocks.Application.Behaviors;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
@@ -46,6 +48,10 @@ namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 /// - AuditInterceptor (singleton)
 /// - JwtOptions (from configuration)
 /// - HttpContextAccessor (for CurrentUserService)
+/// - MediatR with pipeline behaviors:
+///   * LoggingBehavior (logs all requests/responses)
+///   * ValidationBehavior (validates commands/queries with FluentValidation)
+///   * UnitOfWorkBehavior (commits UnitOfWork after successful handling)
 ///
 /// Not Registered Here:
 /// - Module-specific DbContexts (registered per module)
@@ -63,6 +69,7 @@ public static class InfrastructureServiceExtensions
     /// - EF Core interceptors (AuditInterceptor)
     /// - HttpContextAccessor
     /// - JWT options
+    /// - MediatR with pipeline behaviors (Logging, Validation, UnitOfWork)
     ///
     /// Services NOT Registered (Module Responsibility):
     /// - IDataScopingService: Requires IDbConnection which is module-specific
@@ -100,6 +107,24 @@ public static class InfrastructureServiceExtensions
         services.Configure<JwtOptions>(
             configuration.GetSection(JwtOptions.SectionName)
         );
+
+        // MediatR with Pipeline Behaviors
+        // Register from Application assembly where commands, queries, and behaviors are defined
+        services.AddMediatR(config =>
+        {
+            // Register all handlers from Application layer assembly
+            config.RegisterServicesFromAssembly(typeof(ValidationBehavior<,>).Assembly);
+
+            // Register pipeline behaviors (order matters - executes in registration order)
+            // 1. Logging: Log all requests/responses
+            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
+
+            // 2. Validation: Validate commands/queries before handling
+            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+
+            // 3. Unit of Work: Commit changes after successful handling
+            config.AddOpenBehavior(typeof(UnitOfWorkBehavior<,>));
+        });
 
         return services;
     }

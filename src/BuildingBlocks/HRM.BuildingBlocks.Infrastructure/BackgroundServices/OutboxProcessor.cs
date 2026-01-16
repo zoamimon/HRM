@@ -1,8 +1,11 @@
+using System.Data;
+using System.Data.Common;
 using System.Text.Json;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Domain.Abstractions.Events;
 using HRM.BuildingBlocks.Domain.Outbox;
 using HRM.BuildingBlocks.Infrastructure.Persistence;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -43,21 +46,32 @@ namespace HRM.BuildingBlocks.Infrastructure.BackgroundServices;
 /// - Polling interval: 60 seconds (configurable)
 /// - Batch size: 100 messages (configurable)
 /// - Each module has separate OutboxMessages table
-/// - No locking needed (messages processed once)
+/// - Distributed locking prevents duplicate processing in scaled environments
 ///
 /// Deployment Scenarios:
 /// 1. Single Instance:
 ///    - One OutboxProcessor per application
+///    - Distributed lock still acquired (no performance impact)
 ///    - Simple, works for most applications
 ///
 /// 2. Multiple Instances (Scaled Out):
-///    - Use distributed locking (Redis, SQL Server locks)
-///    - Prevents duplicate processing
-///    - Each instance polls independently
+///    - Distributed locking via SQL Server app locks (sp_getapplock)
+///    - Only ONE instance can process outbox at a time per module
+///    - Other instances wait or skip if lock not acquired
+///    - Prevents duplicate event publishing
+///    - Lock timeout: 30 seconds (auto-released on crash)
 ///
 /// 3. Microservices:
 ///    - Each service has own OutboxProcessor
 ///    - Publishes to RabbitMQ instead of in-memory
+///
+/// Distributed Locking Implementation:
+/// - Uses SQL Server application locks (sp_getapplock/sp_releaseapplock)
+/// - Lock resource name: "OutboxProcessor_{ModuleName}"
+/// - Lock mode: Exclusive (only one holder)
+/// - Lock timeout: 0 (non-blocking - skip if locked)
+/// - Lock scope: Session (auto-released on connection close)
+/// - No external dependencies (Redis, etc.) required
 ///
 /// Monitoring:
 /// - Log successful publishes (Information)
@@ -134,6 +148,12 @@ public abstract class OutboxProcessor : BackgroundService
     /// <summary>
     /// Process unprocessed outbox messages in a batch
     /// Creates new scope for each iteration to avoid stale data
+    ///
+    /// Distributed Locking:
+    /// - Acquires SQL Server application lock before processing
+    /// - Lock resource: "OutboxProcessor_{ModuleName}"
+    /// - If lock cannot be acquired, skips this iteration (another instance is processing)
+    /// - Lock automatically released at end of scope
     /// </summary>
     private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
     {
@@ -142,53 +162,87 @@ public abstract class OutboxProcessor : BackgroundService
         var dbContext = GetDbContext(scope.ServiceProvider);
         var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
 
-        // Query unprocessed messages
-        var messages = await dbContext.OutboxMessages
-            .Where(m => m.ProcessedOnUtc == null && m.AttemptCount < _maxAttempts)
-            .OrderBy(m => m.OccurredOnUtc) // Process in chronological order
-            .Take(_batchSize)
-            .ToListAsync(cancellationToken);
+        // Acquire distributed lock
+        var lockResource = $"OutboxProcessor_{dbContext.ModuleName}";
+        var lockAcquired = await TryAcquireLockAsync(dbContext, lockResource, cancellationToken);
 
-        if (!messages.Any())
+        if (!lockAcquired)
         {
-            _logger.LogDebug("{ProcessorName}: No pending outbox messages", GetType().Name);
+            _logger.LogDebug(
+                "{ProcessorName}: Could not acquire lock '{LockResource}'. Another instance is processing. Skipping this iteration.",
+                GetType().Name,
+                lockResource
+            );
             return;
         }
 
-        _logger.LogInformation(
-            "{ProcessorName}: Found {MessageCount} pending outbox messages to process",
-            GetType().Name,
-            messages.Count
-        );
-
-        // Process each message
-        var successCount = 0;
-        var failureCount = 0;
-
-        foreach (var message in messages)
+        try
         {
-            var processed = await ProcessSingleMessageAsync(message, eventBus, cancellationToken);
+            _logger.LogDebug(
+                "{ProcessorName}: Acquired lock '{LockResource}'",
+                GetType().Name,
+                lockResource
+            );
 
-            if (processed)
+            // Query unprocessed messages
+            var messages = await dbContext.OutboxMessages
+                .Where(m => m.ProcessedOnUtc == null && m.AttemptCount < _maxAttempts)
+                .OrderBy(m => m.OccurredOnUtc) // Process in chronological order
+                .Take(_batchSize)
+                .ToListAsync(cancellationToken);
+
+            if (!messages.Any())
             {
-                successCount++;
+                _logger.LogDebug("{ProcessorName}: No pending outbox messages", GetType().Name);
+                return;
             }
-            else
+
+            _logger.LogInformation(
+                "{ProcessorName}: Found {MessageCount} pending outbox messages to process",
+                GetType().Name,
+                messages.Count
+            );
+
+            // Process each message
+            var successCount = 0;
+            var failureCount = 0;
+
+            foreach (var message in messages)
             {
-                failureCount++;
+                var processed = await ProcessSingleMessageAsync(message, eventBus, cancellationToken);
+
+                if (processed)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    failureCount++;
+                }
             }
+
+            // Save all changes (marks messages as processed/failed)
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "{ProcessorName}: Processed {TotalCount} messages - {SuccessCount} succeeded, {FailureCount} failed",
+                GetType().Name,
+                messages.Count,
+                successCount,
+                failureCount
+            );
         }
+        finally
+        {
+            // Release lock (also auto-released when connection closes)
+            await ReleaseLockAsync(dbContext, lockResource, cancellationToken);
 
-        // Save all changes (marks messages as processed/failed)
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(
-            "{ProcessorName}: Processed {TotalCount} messages - {SuccessCount} succeeded, {FailureCount} failed",
-            GetType().Name,
-            messages.Count,
-            successCount,
-            failureCount
-        );
+            _logger.LogDebug(
+                "{ProcessorName}: Released lock '{LockResource}'",
+                GetType().Name,
+                lockResource
+            );
+        }
     }
 
     /// <summary>
@@ -266,6 +320,185 @@ public abstract class OutboxProcessor : BackgroundService
             }
 
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Try to acquire SQL Server application lock for distributed locking
+    ///
+    /// How It Works:
+    /// - Calls sp_getapplock stored procedure
+    /// - Lock mode: Exclusive (only one holder at a time)
+    /// - Lock timeout: 0 milliseconds (non-blocking - return immediately if locked)
+    /// - Lock owner: Session (auto-released when connection closes)
+    ///
+    /// Return Codes:
+    /// - 0 or 1: Lock granted successfully
+    /// - -1: Timeout (lock held by another session)
+    /// - -2: Canceled
+    /// - -3: Deadlock victim
+    /// - -999: Parameter validation error
+    ///
+    /// Benefits:
+    /// - No external dependencies (built into SQL Server)
+    /// - Automatic cleanup on crash (session-scoped)
+    /// - Works across multiple application instances
+    /// - Lightweight (no network overhead)
+    ///
+    /// SQL Executed:
+    /// <code>
+    /// EXEC sp_getapplock
+    ///     @Resource = 'OutboxProcessor_Identity',
+    ///     @LockMode = 'Exclusive',
+    ///     @LockOwner = 'Session',
+    ///     @LockTimeout = 0
+    /// </code>
+    /// </summary>
+    /// <param name="dbContext">Database context</param>
+    /// <param name="lockResource">Lock resource name (unique per module)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if lock acquired, false if already locked by another instance</returns>
+    private async Task<bool> TryAcquireLockAsync(
+        ModuleDbContext dbContext,
+        string lockResource,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Get underlying database connection
+            var connection = dbContext.Database.GetDbConnection();
+
+            // Ensure connection is open
+            if (connection.State != ConnectionState.Open)
+            {
+                await connection.OpenAsync(cancellationToken);
+            }
+
+            // Create command to call sp_getapplock
+            using var command = connection.CreateCommand();
+            command.CommandText = "sp_getapplock";
+            command.CommandType = CommandType.StoredProcedure;
+
+            // Add parameters
+            var resourceParam = command.CreateParameter();
+            resourceParam.ParameterName = "@Resource";
+            resourceParam.Value = lockResource;
+            command.Parameters.Add(resourceParam);
+
+            var lockModeParam = command.CreateParameter();
+            lockModeParam.ParameterName = "@LockMode";
+            lockModeParam.Value = "Exclusive";
+            command.Parameters.Add(lockModeParam);
+
+            var lockOwnerParam = command.CreateParameter();
+            lockOwnerParam.ParameterName = "@LockOwner";
+            lockOwnerParam.Value = "Session";
+            command.Parameters.Add(lockOwnerParam);
+
+            var lockTimeoutParam = command.CreateParameter();
+            lockTimeoutParam.ParameterName = "@LockTimeout";
+            lockTimeoutParam.Value = 0; // Non-blocking
+            command.Parameters.Add(lockTimeoutParam);
+
+            // Add return value parameter
+            var returnParam = command.CreateParameter();
+            returnParam.ParameterName = "@ReturnValue";
+            returnParam.Direction = ParameterDirection.ReturnValue;
+            command.Parameters.Add(returnParam);
+
+            // Execute command
+            await command.ExecuteNonQueryAsync(cancellationToken);
+
+            // Get return value
+            var returnValue = (int)returnParam.Value!;
+
+            // Return codes:
+            // 0, 1 = Success (lock granted)
+            // < 0 = Failure (lock not granted)
+            var lockAcquired = returnValue >= 0;
+
+            if (!lockAcquired)
+            {
+                _logger.LogDebug(
+                    "Failed to acquire lock '{LockResource}'. Return code: {ReturnCode}",
+                    lockResource,
+                    returnValue
+                );
+            }
+
+            return lockAcquired;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error acquiring lock '{LockResource}'. Will skip this iteration.",
+                lockResource
+            );
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Release SQL Server application lock
+    ///
+    /// Note: Lock is automatically released when:
+    /// - Session/connection closes
+    /// - Application crashes
+    /// - Explicit call to sp_releaseapplock
+    ///
+    /// This method explicitly releases the lock for cleanliness,
+    /// but it's not strictly necessary (session-scoped locks auto-release).
+    ///
+    /// SQL Executed:
+    /// <code>
+    /// EXEC sp_releaseapplock
+    ///     @Resource = 'OutboxProcessor_Identity',
+    ///     @LockOwner = 'Session'
+    /// </code>
+    /// </summary>
+    /// <param name="dbContext">Database context</param>
+    /// <param name="lockResource">Lock resource name</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    private async Task ReleaseLockAsync(
+        ModuleDbContext dbContext,
+        string lockResource,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var connection = dbContext.Database.GetDbConnection();
+
+            if (connection.State != ConnectionState.Open)
+            {
+                // Connection already closed, lock auto-released
+                return;
+            }
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "sp_releaseapplock";
+            command.CommandType = CommandType.StoredProcedure;
+
+            var resourceParam = command.CreateParameter();
+            resourceParam.ParameterName = "@Resource";
+            resourceParam.Value = lockResource;
+            command.Parameters.Add(resourceParam);
+
+            var lockOwnerParam = command.CreateParameter();
+            lockOwnerParam.ParameterName = "@LockOwner";
+            lockOwnerParam.Value = "Session";
+            command.Parameters.Add(lockOwnerParam);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Non-critical error - lock will auto-release when connection closes
+            _logger.LogWarning(
+                ex,
+                "Error releasing lock '{LockResource}'. Lock will auto-release when connection closes.",
+                lockResource
+            );
         }
     }
 
