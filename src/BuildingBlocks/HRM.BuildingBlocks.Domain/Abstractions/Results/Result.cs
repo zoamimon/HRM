@@ -266,7 +266,7 @@ public sealed class Result<TValue> : Result
         : throw new InvalidOperationException(
             "Cannot access Value of a failure result. " +
             "Check IsSuccess property before accessing Value. " +
-            $"Error: {Error.Code} - {Error.Message}"
+            $"Error: {Error!.Code} - {Error.Message}"
         );
 
     /// <summary>

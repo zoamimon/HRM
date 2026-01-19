@@ -164,17 +164,12 @@ public static class InfrastructureServiceExtensions
         IConfiguration configuration)
     {
         // Get JWT settings from configuration
-        var jwtSettings = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+        var jwtSection = configuration.GetSection("JwtSettings");
+        var secretKey = jwtSection["SecretKey"];
+        var issuer = jwtSection["Issuer"];
+        var audience = jwtSection["Audience"];
 
-        if (jwtSettings is null)
-        {
-            throw new InvalidOperationException(
-                $"JWT settings not found in configuration. " +
-                $"Ensure '{JwtOptions.SectionName}' section exists in appsettings.json"
-            );
-        }
-
-        if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+        if (string.IsNullOrWhiteSpace(secretKey))
         {
             throw new InvalidOperationException(
                 "JWT SecretKey is not configured. " +
@@ -182,11 +177,25 @@ public static class InfrastructureServiceExtensions
             );
         }
 
-        if (jwtSettings.SecretKey.Length < 32)
+        if (secretKey.Length < 32)
         {
             throw new InvalidOperationException(
                 "JWT SecretKey must be at least 32 characters (256 bits) for HMAC-SHA256. " +
-                $"Current length: {jwtSettings.SecretKey.Length}"
+                $"Current length: {secretKey.Length}"
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(issuer))
+        {
+            throw new InvalidOperationException(
+                "JWT Issuer is not configured in JwtSettings:Issuer"
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(audience))
+        {
+            throw new InvalidOperationException(
+                "JWT Audience is not configured in JwtSettings:Audience"
             );
         }
 
@@ -206,16 +215,16 @@ public static class InfrastructureServiceExtensions
                 // Validate signature
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSettings.SecretKey)
+                    Encoding.UTF8.GetBytes(secretKey)
                 ),
 
                 // Validate issuer
                 ValidateIssuer = true,
-                ValidIssuer = jwtSettings.Issuer,
+                ValidIssuer = issuer,
 
                 // Validate audience
                 ValidateAudience = true,
-                ValidAudience = jwtSettings.Audience,
+                ValidAudience = audience,
 
                 // Validate token expiration
                 ValidateLifetime = true,
