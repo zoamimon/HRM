@@ -1,14 +1,19 @@
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
-using HRM.BuildingBlocks.Domain.Abstractions.Events;
 using HRM.Modules.Identity.Domain.Events;
 using HRM.Modules.Identity.IntegrationEvents;
 using MediatR;
 
-namespace HRM.Modules.Identity.Application.DomainEventHandlers;
+namespace HRM.Modules.Identity.Infrastructure.DomainEventHandlers;
 
 /// <summary>
-/// Domain event handler for OperatorRegisteredDomainEvent
-/// Creates integration event for cross-module communication
+/// Domain event handler for OperatorRegisteredDomainEvent.
+/// Creates integration event for cross-module communication.
+///
+/// LOCATION: Infrastructure Layer
+/// Moved from Application to Infrastructure to fix dependency violation:
+/// - Application should NOT depend on IntegrationEvents
+/// - Infrastructure CAN depend on both Application and IntegrationEvents
+/// - This handler is infrastructure concern (outbox message creation)
 ///
 /// Domain Events vs Integration Events:
 /// - Domain Event: In-process, same transaction, synchronous

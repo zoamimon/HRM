@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.BuildingBlocks.Infrastructure.Extensions;
 using HRM.Modules.Identity.API.Contracts;
 using HRM.Modules.Identity.Application.Commands.ActivateOperator;
 using HRM.Modules.Identity.Application.Commands.RegisterOperator;
@@ -11,14 +11,15 @@ using Microsoft.AspNetCore.Routing;
 namespace HRM.Modules.Identity.API.Endpoints;
 
 /// <summary>
-/// Minimal API endpoints for Operator operations
-/// Implements RESTful API for operator registration and activation
+/// Minimal API endpoints for Operator operations.
+/// Implements RESTful API for operator registration and activation.
 ///
 /// Architecture:
-/// - Minimal API (MapPost, MapGet, etc.) - lightweight alternative to Controllers
+/// - Minimal API: Lightweight alternative to Controllers
 /// - CQRS: Commands via MediatR (RegisterOperator, ActivateOperator)
-/// - Result Pattern: Returns Result<T> for type-safe error handling
-/// - DTO Mapping: Request DTOs -> Commands, Entities -> Response DTOs
+/// - Result Pattern: Type-safe error handling with DomainError
+/// - Pure DDD: Domain errors mapped to HTTP in API layer
+/// - DTO Mapping: Request DTOs → Commands, Entities → Response DTOs
 ///
 /// Endpoints:
 /// 1. POST /api/identity/operators/register
@@ -35,10 +36,12 @@ namespace HRM.Modules.Identity.API.Endpoints;
 /// - Policy-based: "AdminOnly" policy (role = Admin)
 ///
 /// Error Handling:
-/// - Result pattern: Match success/failure cases
-/// - Success: Return appropriate HTTP status (200, 201)
-/// - Failure: Map error type to HTTP status (400, 404, 409)
-/// - Validation errors: 400 Bad Request (handled by ValidationBehavior)
+/// - ResultExtensions.ToHttpResultAsync() maps DomainError → HTTP
+/// - NotFoundError → 404 Not Found
+/// - ConflictError → 409 Conflict
+/// - ValidationError → 400 Bad Request
+/// - UnauthorizedError → 401 Unauthorized
+/// - ForbiddenError → 403 Forbidden
 ///
 /// Example Usage (Startup/Program.cs):
 /// <code>
@@ -51,7 +54,7 @@ namespace HRM.Modules.Identity.API.Endpoints;
 public static class OperatorEndpoints
 {
     /// <summary>
-    /// Map operator endpoints to route builder
+    /// Map operator endpoints to route builder.
     /// </summary>
     /// <param name="app">Endpoint route builder</param>
     /// <returns>Route group builder for chaining</returns>
@@ -89,7 +92,7 @@ public static class OperatorEndpoints
 
     /// <summary>
     /// POST /api/identity/operators/register
-    /// Register a new operator (admin-only)
+    /// Register a new operator (admin-only).
     /// </summary>
     private static async Task<IResult> RegisterOperator(
         RegisterOperatorRequest request,
@@ -109,60 +112,44 @@ public static class OperatorEndpoints
         // Execute command via MediatR
         var result = await sender.Send(command, cancellationToken);
 
-        // Handle result
-        return await result.Match(
-            onSuccess: async operatorId =>
-            {
-                // Retrieve created operator
-                var @operator = await operatorRepository.GetByIdAsync(operatorId, cancellationToken);
-                if (@operator is null)
-                {
-                    return Results.Problem(
-                        detail: "Operator was created but could not be retrieved.",
-                        statusCode: StatusCodes.Status500InternalServerError
-                    );
-                }
+        // Map Result<Guid> to HTTP response using ResultExtensions
+        // DomainError → HTTP status codes happen here
+        return await result.ToHttpResultAsync(async operatorId =>
+        {
+            // Retrieve created operator
+            var @operator = await operatorRepository.GetByIdAsync(operatorId, cancellationToken);
 
-                // Map to response DTO
-                var response = new OperatorResponse(
-                    Id: @operator.Id,
-                    Username: @operator.Username,
-                    Email: @operator.Email,
-                    FullName: @operator.FullName,
-                    PhoneNumber: @operator.PhoneNumber,
-                    Status: @operator.Status.ToString(),
-                    IsTwoFactorEnabled: @operator.IsTwoFactorEnabled,
-                    ActivatedAtUtc: @operator.ActivatedAtUtc,
-                    LastLoginAtUtc: @operator.LastLoginAtUtc,
-                    CreatedAtUtc: @operator.CreatedAtUtc,
-                    ModifiedAtUtc: @operator.ModifiedAtUtc
+            if (@operator is null)
+            {
+                return Results.Problem(
+                    detail: "Operator was created but could not be retrieved.",
+                    statusCode: StatusCodes.Status500InternalServerError
                 );
-
-                // Return 201 Created with Location header
-                return Results.Created($"/api/identity/operators/{operatorId}", response);
-            },
-            onFailure: error =>
-            {
-                // Map error to HTTP status
-                return Task.FromResult(error.Type switch
-                {
-                    ErrorType.Validation => Results.BadRequest(new { error.Code, error.Message }),
-                    ErrorType.Conflict => Results.Conflict(new { error.Code, error.Message }),
-                    ErrorType.NotFound => Results.NotFound(new { error.Code, error.Message }),
-                    ErrorType.Forbidden => Results.Forbid(),
-                    ErrorType.Unauthorized => Results.Unauthorized(),
-                    _ => Results.Problem(
-                        detail: error.Message,
-                        statusCode: StatusCodes.Status500InternalServerError
-                    )
-                });
             }
-        );
+
+            // Map entity to response DTO
+            var response = new OperatorResponse(
+                Id: @operator.Id,
+                Username: @operator.Username,
+                Email: @operator.Email,
+                FullName: @operator.FullName,
+                PhoneNumber: @operator.PhoneNumber,
+                Status: @operator.Status.ToString(),
+                IsTwoFactorEnabled: @operator.IsTwoFactorEnabled,
+                ActivatedAtUtc: @operator.ActivatedAtUtc,
+                LastLoginAtUtc: @operator.LastLoginAtUtc,
+                CreatedAtUtc: @operator.CreatedAtUtc,
+                ModifiedAtUtc: @operator.ModifiedAtUtc
+            );
+
+            // Return 201 Created with Location header
+            return Results.Created($"/api/identity/operators/{operatorId}", response);
+        });
     }
 
     /// <summary>
     /// POST /api/identity/operators/{id}/activate
-    /// Activate a pending operator (admin-only)
+    /// Activate a pending operator (admin-only).
     /// </summary>
     private static async Task<IResult> ActivateOperator(
         Guid id,
@@ -176,54 +163,42 @@ public static class OperatorEndpoints
         // Execute command via MediatR
         var result = await sender.Send(command, cancellationToken);
 
-        // Handle result
-        return await result.Match(
-            onSuccess: async () =>
-            {
-                // Retrieve activated operator
-                var @operator = await operatorRepository.GetByIdAsync(id, cancellationToken);
-                if (@operator is null)
-                {
-                    return Results.Problem(
-                        detail: "Operator was activated but could not be retrieved.",
-                        statusCode: StatusCodes.Status500InternalServerError
-                    );
-                }
+        // Map Result to HTTP response using ResultExtensions
+        // For void Result, we need custom success handling
+        if (result.IsSuccess)
+        {
+            // Retrieve activated operator
+            var @operator = await operatorRepository.GetByIdAsync(id, cancellationToken);
 
-                // Map to response DTO
-                var response = new OperatorResponse(
-                    Id: @operator.Id,
-                    Username: @operator.Username,
-                    Email: @operator.Email,
-                    FullName: @operator.FullName,
-                    PhoneNumber: @operator.PhoneNumber,
-                    Status: @operator.Status.ToString(),
-                    IsTwoFactorEnabled: @operator.IsTwoFactorEnabled,
-                    ActivatedAtUtc: @operator.ActivatedAtUtc,
-                    LastLoginAtUtc: @operator.LastLoginAtUtc,
-                    CreatedAtUtc: @operator.CreatedAtUtc,
-                    ModifiedAtUtc: @operator.ModifiedAtUtc
+            if (@operator is null)
+            {
+                return Results.Problem(
+                    detail: "Operator was activated but could not be retrieved.",
+                    statusCode: StatusCodes.Status500InternalServerError
                 );
-
-                // Return 200 OK
-                return Results.Ok(response);
-            },
-            onFailure: error =>
-            {
-                // Map error to HTTP status
-                return Task.FromResult(error.Type switch
-                {
-                    ErrorType.Validation => Results.BadRequest(new { error.Code, error.Message }),
-                    ErrorType.Conflict => Results.Conflict(new { error.Code, error.Message }),
-                    ErrorType.NotFound => Results.NotFound(new { error.Code, error.Message }),
-                    ErrorType.Forbidden => Results.Forbid(),
-                    ErrorType.Unauthorized => Results.Unauthorized(),
-                    _ => Results.Problem(
-                        detail: error.Message,
-                        statusCode: StatusCodes.Status500InternalServerError
-                    )
-                });
             }
-        );
+
+            // Map entity to response DTO
+            var response = new OperatorResponse(
+                Id: @operator.Id,
+                Username: @operator.Username,
+                Email: @operator.Email,
+                FullName: @operator.FullName,
+                PhoneNumber: @operator.PhoneNumber,
+                Status: @operator.Status.ToString(),
+                IsTwoFactorEnabled: @operator.IsTwoFactorEnabled,
+                ActivatedAtUtc: @operator.ActivatedAtUtc,
+                LastLoginAtUtc: @operator.LastLoginAtUtc,
+                CreatedAtUtc: @operator.CreatedAtUtc,
+                ModifiedAtUtc: @operator.ModifiedAtUtc
+            );
+
+            // Return 200 OK with response body
+            return Results.Ok(response);
+        }
+
+        // Map error using ResultExtensions
+        // This handles all DomainError types (NotFoundError, ValidationError, etc.)
+        return result.ToHttpResult();
     }
 }

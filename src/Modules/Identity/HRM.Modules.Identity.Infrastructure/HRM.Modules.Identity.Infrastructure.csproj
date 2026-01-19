@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HRM.Modules.Identity.Domain\HRM.Modules.Identity.Domain.csproj" />
     <ProjectReference Include="..\HRM.Modules.Identity.Application\HRM.Modules.Identity.Application.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Identity.IntegrationEvents\HRM.Modules.Identity.IntegrationEvents.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\HRM.BuildingBlocks.Infrastructure\HRM.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
 

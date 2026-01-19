@@ -82,7 +82,7 @@ internal sealed class ActivateOperatorCommandHandler : ICommandHandler<ActivateO
             }
 
             // Other validation errors (suspended, deactivated, etc.)
-            return Result.Failure(Error.Validation("Operator.CannotActivate", ex.Message));
+            return Result.Failure(new ValidationError("Operator.CannotActivate", ex.Message));
         }
 
         // 3. EF Core tracks changes automatically (no explicit Update needed)
