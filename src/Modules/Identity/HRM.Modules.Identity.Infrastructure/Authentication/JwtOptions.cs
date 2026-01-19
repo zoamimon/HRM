@@ -1,4 +1,4 @@
-namespace HRM.BuildingBlocks.Infrastructure.Authentication;
+namespace HRM.Modules.Identity.Infrastructure.Authentication;
 
 /// <summary>
 /// Configuration options for JWT token generation

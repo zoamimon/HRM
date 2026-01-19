@@ -1,6 +1,6 @@
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Commands;
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Errors;
 using HRM.Modules.Identity.Domain.Repositories;

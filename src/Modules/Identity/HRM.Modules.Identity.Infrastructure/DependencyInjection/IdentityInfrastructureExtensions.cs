@@ -1,5 +1,7 @@
 using FluentValidation;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Domain.Repositories;
+using HRM.Modules.Identity.Infrastructure.Authentication;
 using HRM.Modules.Identity.Infrastructure.BackgroundServices;
 using HRM.Modules.Identity.Infrastructure.Persistence;
 using HRM.Modules.Identity.Infrastructure.Persistence.Repositories;
@@ -16,6 +18,8 @@ namespace HRM.Modules.Identity.Infrastructure.DependencyInjection;
 /// Registration:
 /// - DbContext: IdentityDbContext (SQL Server, connection string "HrmDb")
 /// - Repositories: IOperatorRepository -> OperatorRepository (Scoped)
+/// - Authentication Services: IPasswordHasher -> PasswordHasher (Singleton), ITokenService -> TokenService (Singleton)
+/// - JWT Options: Configuration from appsettings.json (JwtSettings section)
 /// - Background Services: IdentityOutboxProcessor (Singleton, IHostedService)
 /// - Interceptors: AuditInterceptor (from BuildingBlocks)
 ///
@@ -93,12 +97,24 @@ public static class IdentityInfrastructureExtensions
         // Scoped: One instance per HTTP request
         services.AddScoped<IOperatorRepository, OperatorRepository>();
 
-        // 3. Register Background Services
+        // 3. Register Authentication Services
+        // Singleton: Stateless services, safe to share across requests
+        // NOTE: These are Identity module-specific, used only for login/registration
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<ITokenService, TokenService>();
+
+        // Configure JWT Options from appsettings.json
+        // Section: "JwtSettings" with SecretKey, Issuer, Audience, etc.
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName)
+        );
+
+        // 4. Register Background Services
         // Singleton: Runs continuously in background
         // IHostedService: Starts automatically with application
         services.AddHostedService<IdentityOutboxProcessor>();
 
-        // 4. Register MediatR handlers from Application layer
+        // 5. Register MediatR handlers from Application layer
         // Discovers all ICommandHandler, IQueryHandler, INotificationHandler
         services.AddMediatR(config =>
         {
@@ -107,7 +123,7 @@ public static class IdentityInfrastructureExtensions
             );
         });
 
-        // 5. Register FluentValidation validators from Application layer
+        // 6. Register FluentValidation validators from Application layer
         // Discovers all AbstractValidator<T>
         services.AddValidatorsFromAssembly(
             typeof(Application.Commands.RegisterOperator.RegisterOperatorCommand).Assembly

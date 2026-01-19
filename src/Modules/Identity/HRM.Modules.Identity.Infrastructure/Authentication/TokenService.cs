@@ -2,13 +2,13 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace HRM.BuildingBlocks.Infrastructure.Authentication;
+namespace HRM.Modules.Identity.Infrastructure.Authentication;
 
 /// <summary>
 /// JWT token service implementation

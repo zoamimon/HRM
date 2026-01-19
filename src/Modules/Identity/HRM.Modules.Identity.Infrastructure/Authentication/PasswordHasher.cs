@@ -1,7 +1,7 @@
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using BCrypt.Net;
 
-namespace HRM.BuildingBlocks.Infrastructure.Authentication;
+namespace HRM.Modules.Identity.Infrastructure.Authentication;
 
 /// <summary>
 /// BCrypt-based password hasher implementation

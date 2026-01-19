@@ -5,7 +5,6 @@ using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Application.Behaviors;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
-using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -42,11 +41,7 @@ namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 /// What Gets Registered:
 /// - IEventBus → InMemoryEventBus (singleton)
 /// - ICurrentUserService → CurrentUserService (scoped)
-/// - IPasswordHasher → PasswordHasher (singleton)
-/// - ITokenService → TokenService (singleton)
-/// - IDataScopingService → DataScopingService (scoped)
 /// - AuditInterceptor (singleton)
-/// - JwtOptions (from configuration)
 /// - HttpContextAccessor (for CurrentUserService)
 /// - MediatR with pipeline behaviors:
 ///   * LoggingBehavior (logs all requests/responses)
@@ -65,10 +60,9 @@ public static class InfrastructureServiceExtensions
     ///
     /// Services Registered:
     /// - Event Bus (InMemoryEventBus)
-    /// - Authentication services (CurrentUserService, PasswordHasher, TokenService)
+    /// - Authentication services (CurrentUserService only - IPasswordHasher/ITokenService moved to Identity module)
     /// - EF Core interceptors (AuditInterceptor)
     /// - HttpContextAccessor
-    /// - JWT options
     /// - MediatR with pipeline behaviors (Logging, Validation, UnitOfWork)
     ///
     /// Services NOT Registered (Module Responsibility):
@@ -89,9 +83,9 @@ public static class InfrastructureServiceExtensions
         services.AddHttpContextAccessor();
 
         // Authentication Services
+        // NOTE: ICurrentUserService is shared across all modules for authorization
+        // IPasswordHasher and ITokenService are registered in Identity module (authentication-specific)
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-        services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddSingleton<ITokenService, TokenService>();
 
         // Authorization Services
         // NOTE: DataScopingService requires IDbConnection which must be registered at module level
@@ -102,11 +96,6 @@ public static class InfrastructureServiceExtensions
 
         // EF Core Interceptors
         services.AddSingleton<AuditInterceptor>();
-
-        // JWT Options
-        services.Configure<JwtOptions>(
-            configuration.GetSection(JwtOptions.SectionName)
-        );
 
         // MediatR with Pipeline Behaviors
         // Register from Application assembly where commands, queries, and behaviors are defined
