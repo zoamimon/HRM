@@ -95,8 +95,8 @@ public interface ICommandBase
 /// 
 /// Error Handling Philosophy:
 /// - Do NOT throw exceptions for expected business failures
-/// - Return Result.Failure(Error.NotFound(...)) instead of NotFoundException
-/// - Return Result.Failure(Error.Conflict(...)) instead of DuplicateException
+/// - Return Result.Failure(new NotFoundError(...)) instead of NotFoundException
+/// - Return Result.Failure(new ConflictError(...)) instead of DuplicateException
 /// - Let infrastructure exceptions bubble up (database errors, network failures)
 /// 
 /// Transaction Handling:

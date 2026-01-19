@@ -65,7 +65,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///         // Find user by username
 ///         var @operator = await _repository.GetByUsernameAsync(command.Username);
 ///         if (@operator is null)
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///         
 ///         // Verify provided password against stored hash
 ///         bool isValid = _passwordHasher.VerifyPassword(
@@ -74,7 +74,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///         );
 ///         
 ///         if (!isValid)
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///         
 ///         // Password correct, proceed with login
 ///         var token = _tokenService.GenerateAccessToken(@operator);
@@ -157,7 +157,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///             @operator.GetPasswordHash()
 ///         );
 ///         if (!isValid)
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///         
 ///         // 3. Hash new password
 ///         var newHash = _passwordHasher.HashPassword(command.NewPassword);
@@ -272,7 +272,7 @@ public interface IPasswordHasher
     ///     
     ///     // Return generic error (don't reveal if username exists)
     ///     return Result.Failure(
-    ///         Error.Unauthorized(
+    ///         new UnauthorizedError(
     ///             "Auth.InvalidCredentials",
     ///             "Invalid username or password"
     ///         )

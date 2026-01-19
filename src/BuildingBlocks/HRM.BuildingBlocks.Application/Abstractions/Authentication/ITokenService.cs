@@ -115,7 +115,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///         // 1. Validate credentials
 ///         var @operator = await ValidateCredentialsAsync(command);
 ///         if (@operator is null)
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///         
 ///         // 2. Generate access token (JWT)
 ///         var accessToken = _tokenService.GenerateAccessToken(@operator);
@@ -159,7 +159,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///         );
 ///         
 ///         if (storedToken is null || !storedToken.IsActive())
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///         
 ///         // 2. Load user
 ///         var @operator = await _operatorRepository.GetByIdAsync(

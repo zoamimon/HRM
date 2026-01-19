@@ -39,7 +39,7 @@ namespace HRM.BuildingBlocks.Infrastructure.Authentication;
 ///     public async Task<Result<Guid>> Handle(...)
 ///     {
 ///         if (!_currentUser.IsAuthenticated)
-///             return Result.Failure(Error.Unauthorized(...));
+///             return Result.Failure(new UnauthorizedError(...));
 ///
 ///         if (_currentUser.IsOperator())
 ///         {
@@ -51,7 +51,7 @@ namespace HRM.BuildingBlocks.Infrastructure.Authentication;
 ///         }
 ///         else
 ///         {
-///             return Result.Failure(Error.Forbidden(...));
+///             return Result.Failure(new ForbiddenError(...));
 ///         }
 ///     }
 /// }

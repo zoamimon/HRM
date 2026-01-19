@@ -98,13 +98,12 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 ///     Email = "invalid-email",     // Invalid format
 ///     Password = "weak"            // Doesn't meet requirements
 /// };
-/// // Result: Result.Failure with validation errors:
+/// // Result: Result.Failure with ValidationError:
 /// {
 ///   IsSuccess: false,
-///   Error: {
+///   Error: ValidationError {
 ///     Code: "Validation.Error",
 ///     Message: "One or more validation errors occurred",
-///     Type: ErrorType.Validation (400),
 ///     Details: {
 ///       "Username": ["Username must be at least 3 characters"],
 ///       "Email": ["Invalid email format"],
@@ -117,6 +116,9 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 ///     }
 ///   }
 /// }
+///
+/// // HTTP Mapping (via ResultExtensions in API layer):
+/// // ValidationError → 400 Bad Request with error details
 /// </code>
 /// 
 /// Complex Validation Example:
@@ -176,7 +178,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 /// // - SecurityPolicyValidator
 /// 
 /// // All failures aggregated into single Result:
-/// Result.Failure(Error.Validation(
+/// Result.Failure(new ValidationError(
 ///     "Validation.Error",
 ///     "One or more validation errors occurred",
 ///     allValidationErrors // Dictionary&lt;string, string[]&gt;
@@ -265,7 +267,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 ///         
 ///         // Assert
 ///         result.IsFailure.Should().BeTrue();
-///         result.Error.Type.Should().Be(ErrorType.Validation);
+///         result.Error.Should().BeOfType&lt;ValidationError&gt;();
 ///     }
 /// }
 /// </code>
@@ -343,8 +345,8 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
                 g => g.Select(f => f.ErrorMessage).ToArray()
             );
 
-        // Create validation error
-        var validationError = Error.Validation(
+        // Create validation error using pure DomainError hierarchy
+        var validationError = new ValidationError(
             "Validation.Error",
             "One or more validation errors occurred",
             errorsDictionary
@@ -358,21 +360,21 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
     /// Creates a validation failure result of the appropriate type.
     /// Uses reflection to call generic Result.Failure method.
     /// </summary>
-    private static TResponse CreateValidationFailureResult(Error error)
+    private static TResponse CreateValidationFailureResult(DomainError error)
     {
         // Handle Result (void command)
-        if (typeof(TResponse) == typeof(Results.Result))
+        if (typeof(TResponse) == typeof(Result))
         {
-            return (TResponse)(object)Results.Result.Failure(error);
+            return (TResponse)(object)Result.Failure(error);
         }
 
         // Handle Result<TValue> (command returning data)
         if (typeof(TResponse).IsGenericType &&
-            typeof(TResponse).GetGenericTypeDefinition() == typeof(Results.Result<>))
+            typeof(TResponse).GetGenericTypeDefinition() == typeof(Result<>))
         {
             var valueType = typeof(TResponse).GetGenericArguments()[0];
-            var failureMethod = typeof(Results.Result)
-                .GetMethod(nameof(Results.Result.Failure), 1, new[] { typeof(Error) })!
+            var failureMethod = typeof(Result)
+                .GetMethod(nameof(Result.Failure), 1, new[] { typeof(DomainError) })!
                 .MakeGenericMethod(valueType);
 
             return (TResponse)failureMethod.Invoke(null, new object[] { error })!;

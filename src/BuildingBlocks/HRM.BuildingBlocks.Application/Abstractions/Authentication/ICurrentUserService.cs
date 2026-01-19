@@ -98,7 +98,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
 ///         case ScopeLevel.Employee:
 ///             // Can only access own data
 ///             if (requestedEmployeeId != _currentUser.EmployeeId)
-///                 return Result.Failure(Error.Forbidden(...));
+///                 return Result.Failure(new ForbiddenError(...));
 ///             break;
 ///     }
 /// }
@@ -194,7 +194,7 @@ public interface ICurrentUserService
     /// if (!_currentUser.IsAuthenticated)
     /// {
     ///     return Result.Failure(
-    ///         Error.Unauthorized("Auth.Required", "Authentication required")
+    ///         new UnauthorizedError("Auth.Required", "Authentication required")
     ///     );
     /// }
     /// 

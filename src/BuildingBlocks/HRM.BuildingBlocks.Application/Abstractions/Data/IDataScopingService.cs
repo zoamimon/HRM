@@ -183,7 +183,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Data;
 /// var scopeContext = await _scopingService.GetCurrentScopeAsync();
 /// if (!scopeContext.CanAccessEmployee(employeeId))
 /// {
-///     return Result.Failure(Error.Forbidden(...));
+///     return Result.Failure(new ForbiddenError(...));
 /// }
 /// </code>
 /// </summary>
@@ -300,7 +300,7 @@ public interface IDataScopingService
     ///         command.EmployeeId))
     ///     {
     ///         return Result.Failure(
-    ///             Error.Forbidden(
+    ///             new ForbiddenError(
     ///                 "Employee.AccessDenied",
     ///                 "You don't have permission to access this employee"
     ///             )

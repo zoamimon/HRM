@@ -135,7 +135,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 /// public async Task&lt;Result&lt;Guid&gt;&gt; Handle(...)
 /// {
 ///     if (await _repository.ExistsByUsernameAsync(command.Username))
-///         return Result.Failure(Error.Conflict(...));
+///         return Result.Failure(new ConflictError(...));
 ///     
 ///     // Result.IsFailure, no commit
 /// }
@@ -208,7 +208,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 ///         // Act
 ///         await behavior.Handle(
 ///             new TestCommand(),
-///             () => Task.FromResult(Result.Failure(Error.Validation(...))),
+///             () => Task.FromResult(Result.Failure(new ValidationError(...))),
 ///             CancellationToken.None
 ///         );
 ///         
@@ -290,7 +290,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 /// public async Task&lt;Result&gt; Handle(...)
 /// {
 ///     if (invalid)
-///         return Result.Failure(Error.Validation(...));
+///         return Result.Failure(new ValidationError(...));
 /// }
 /// </code>
 /// </summary>
