@@ -171,13 +171,18 @@ public interface ICurrentUserService
 
     /// <summary>
     /// Gets the current user's roles (from JWT 'Roles' claim).
-    /// Comma-separated string needs to be split.
-    /// 
+    /// Returns read-only collection of roles parsed from comma-separated string.
+    ///
     /// Example: "Manager,HR,DepartmentHead" → ["Manager", "HR", "DepartmentHead"]
-    /// 
+    ///
+    /// Important:
+    /// - Never returns null (returns empty collection if no roles)
+    /// - Use IsInRole() or HasRole() for checking role membership
+    /// - Collection is read-only to prevent modification
+    ///
     /// Used for role-based authorization checks.
     /// </summary>
-    string[]? Roles { get; }
+    IReadOnlyCollection<string> Roles { get; }
 
     /// <summary>
     /// Indicates whether the current request is authenticated.
@@ -201,14 +206,14 @@ public interface ICurrentUserService
     /// <summary>
     /// Checks if the current user has a specific role.
     /// Case-insensitive comparison.
-    /// 
+    ///
     /// Usage:
     /// <code>
     /// if (_currentUser.HasRole("SystemAdmin"))
     /// {
     ///     // Allow sensitive operation
     /// }
-    /// 
+    ///
     /// if (_currentUser.HasRole("Manager"))
     /// {
     ///     // Allow management operations
@@ -218,6 +223,29 @@ public interface ICurrentUserService
     /// <param name="role">Role name to check</param>
     /// <returns>True if user has the role, false otherwise</returns>
     bool HasRole(string role);
+
+    /// <summary>
+    /// Checks if the current user has a specific role.
+    /// Case-insensitive comparison (alias for HasRole).
+    ///
+    /// Cleaner syntax for role checks in Application layer.
+    ///
+    /// Usage:
+    /// <code>
+    /// if (_currentUser.IsInRole("Admin"))
+    /// {
+    ///     // Allow admin operation
+    /// }
+    ///
+    /// if (_currentUser.IsInRole("Manager"))
+    /// {
+    ///     // Allow manager operation
+    /// }
+    /// </code>
+    /// </summary>
+    /// <param name="role">Role name to check (case-insensitive)</param>
+    /// <returns>True if user has the role, false otherwise</returns>
+    bool IsInRole(string role);
 
     /// <summary>
     /// Checks if the current user is an Operator.

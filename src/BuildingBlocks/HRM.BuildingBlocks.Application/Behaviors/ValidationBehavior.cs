@@ -1,6 +1,6 @@
 using FluentValidation;
 using HRM.BuildingBlocks.Application.Abstractions.Commands;
-using HRM.BuildingBlocks.Application.Results;
+using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using MediatR;
 
 namespace HRM.BuildingBlocks.Application.Behaviors;

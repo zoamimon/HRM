@@ -211,9 +211,10 @@ public sealed class CurrentUserService : ICurrentUserService
 
     /// <summary>
     /// Gets the current user's roles from JWT "Roles" claim
-    /// Returns array of role names (comma-separated in claim)
+    /// Returns read-only collection of role names (comma-separated in claim)
+    /// Never returns null - returns empty collection if no roles
     /// </summary>
-    public string[]? Roles
+    public IReadOnlyCollection<string> Roles
     {
         get
         {
@@ -252,13 +253,17 @@ public sealed class CurrentUserService : ICurrentUserService
             return false;
         }
 
-        if (Roles is null || Roles.Length == 0)
-        {
-            return false;
-        }
-
         return Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>
+    /// Checks if the current user has a specific role
+    /// Case-insensitive comparison (alias for HasRole)
+    /// Cleaner syntax for role checks in Application layer
+    /// </summary>
+    /// <param name="role">Role name to check (case-insensitive)</param>
+    /// <returns>True if user has the role, false otherwise</returns>
+    public bool IsInRole(string role) => HasRole(role);
 
     /// <summary>
     /// Checks if the current user is an Operator

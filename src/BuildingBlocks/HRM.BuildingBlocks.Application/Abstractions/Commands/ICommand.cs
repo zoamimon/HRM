@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Application.Results;
+using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using MediatR;
 
 namespace HRM.BuildingBlocks.Application.Abstractions.Commands;

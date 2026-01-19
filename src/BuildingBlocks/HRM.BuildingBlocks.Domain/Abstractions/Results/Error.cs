@@ -1,15 +1,15 @@
-namespace HRM.BuildingBlocks.Application.Results;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Results;
 
 /// <summary>
 /// Represents an error that occurred during application execution.
 /// Immutable record for functional error handling without exceptions.
-/// 
+///
 /// Design Principles:
 /// - Immutable: Thread-safe, prevents accidental modifications
 /// - Factory methods: Enforce correct ErrorType for each error category
 /// - Descriptive: Code + Message + Optional Details provide full context
 /// - Serializable: Can be sent over HTTP/gRPC/message queues
-/// 
+///
 /// Error Code Convention:
 /// Format: "{Entity}.{ErrorName}"
 /// Examples:
@@ -18,19 +18,19 @@ namespace HRM.BuildingBlocks.Application.Results;
 /// - "User.DuplicateEmail" - Email already exists
 /// - "Validation.Failed" - Multiple validation errors
 /// - "Authentication.InvalidCredentials" - Login failed
-/// 
+///
 /// Usage Examples:
 /// <code>
 /// // Not found error
 /// return Result.Failure(
 ///     Error.NotFound("Operator.NotFound", $"Operator with ID {id} not found")
 /// );
-/// 
+///
 /// // Conflict error
 /// return Result.Failure(
 ///     Error.Conflict("Operator.DuplicateUsername", $"Username '{username}' already exists")
 /// );
-/// 
+///
 /// // Validation error with details
 /// var errors = new Dictionary&lt;string, string[]&gt;
 /// {
@@ -67,11 +67,11 @@ public sealed record Error
     /// <summary>
     /// Additional error details (optional).
     /// Primarily used for validation errors with multiple field-level errors.
-    /// 
+    ///
     /// Structure:
     /// - Key: Field name (e.g., "Username", "Email")
     /// - Value: Array of error messages for that field
-    /// 
+    ///
     /// Example:
     /// {
     ///   "Username": ["Required", "Must be at least 3 characters", "Cannot contain spaces"],

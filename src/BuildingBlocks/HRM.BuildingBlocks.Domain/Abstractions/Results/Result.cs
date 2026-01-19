@@ -1,26 +1,26 @@
-namespace HRM.BuildingBlocks.Application.Results;
+namespace HRM.BuildingBlocks.Domain.Abstractions.Results;
 
 /// <summary>
 /// Represents the result of an operation without return value.
 /// Used for commands that perform actions but don't return data.
-/// 
+///
 /// Benefits of Result Pattern:
 /// - Explicit error handling without exceptions
 /// - Type-safe success/failure distinction
 /// - Composable and chainable operations
 /// - Clear API contracts
 /// - Better performance (no exception throwing/catching)
-/// 
+///
 /// When to Use:
 /// - Command handlers that modify state (Create, Update, Delete)
 /// - Operations where success/failure is the only outcome
 /// - Business logic that may fail for expected reasons
-/// 
+///
 /// When NOT to Use:
 /// - Queries (use direct DTO returns instead)
 /// - Infrastructure failures (use exceptions)
 /// - Unexpected errors (use exceptions)
-/// 
+///
 /// Usage Example:
 /// <code>
 /// public async Task&lt;Result&gt; Handle(DeleteOperatorCommand command, CancellationToken ct)
@@ -30,16 +30,16 @@ namespace HRM.BuildingBlocks.Application.Results;
 ///         return Result.Failure(
 ///             Error.NotFound("Operator.NotFound", "Operator not found")
 ///         );
-///     
+///
 ///     if (@operator.IsSystemOperator())
 ///         return Result.Failure(
 ///             Error.Forbidden("Operator.CannotDelete", "Cannot delete system operator")
 ///         );
-///     
+///
 ///     _repository.Remove(@operator);
 ///     return Result.Success();
 /// }
-/// 
+///
 /// // In API controller:
 /// var result = await mediator.Send(command);
 /// if (result.IsFailure)
@@ -71,7 +71,7 @@ public class Result
     /// <summary>
     /// Protected constructor to enforce factory method usage.
     /// Validates that success results have no error and failure results have an error.
-    /// 
+    ///
     /// IMPORTANT: Validates using ErrorType enum instead of reference equality.
     /// This is crucial because Error is a record and may be recreated/deserialized.
     /// </summary>
@@ -140,20 +140,49 @@ public class Result
     /// <returns>Result indicating failed operation</returns>
     public static Result<TValue> Failure<TValue>(Error error)
         => new(default, false, error);
+
+    /// <summary>
+    /// Match pattern for Result without return value.
+    /// Executes onSuccess or onFailure action based on result state.
+    /// </summary>
+    /// <param name="onSuccess">Action to execute if operation succeeded</param>
+    /// <param name="onFailure">Action to execute if operation failed (receives error)</param>
+    public void Match(
+        Action onSuccess,
+        Action<Error> onFailure)
+    {
+        if (IsSuccess)
+            onSuccess();
+        else
+            onFailure(Error);
+    }
+
+    /// <summary>
+    /// Async match pattern for Result without return value.
+    /// Executes onSuccess or onFailure function based on result state.
+    /// </summary>
+    public async Task<TResult> Match<TResult>(
+        Func<Task<TResult>> onSuccess,
+        Func<Error, Task<TResult>> onFailure)
+    {
+        return IsSuccess
+            ? await onSuccess()
+            : await onFailure(Error);
+    }
 }
 
 /// <summary>
 /// Represents the result of an operation with a return value.
 /// Used for commands that return data on success (e.g., created entity ID).
-/// 
+///
 /// Generic Constraint:
 /// - TValue can be any type (value type, reference type, nullable)
-/// 
+///
 /// Value Access Safety:
 /// - Value property throws if accessed on failure result
 /// - Always check IsSuccess before accessing Value
 /// - Null values are allowed for nullable reference types
-/// 
+///
 /// Usage Example:
 /// <code>
 /// public async Task&lt;Result&lt;Guid&gt;&gt; Handle(RegisterOperatorCommand command, CancellationToken ct)
@@ -166,7 +195,7 @@ public class Result
 ///                 $"Username '{command.Username}' already exists"
 ///             )
 ///         );
-///     
+///
 ///     // Check for duplicate email
 ///     if (await _repository.ExistsByEmailAsync(command.Email, ct))
 ///         return Result.Failure&lt;Guid&gt;(
@@ -175,7 +204,7 @@ public class Result
 ///                 $"Email '{command.Email}' already exists"
 ///             )
 ///         );
-///     
+///
 ///     // Create operator (domain event raised here)
 ///     var hashedPassword = _passwordHasher.HashPassword(command.Password);
 ///     var @operator = Operator.Register(
@@ -183,14 +212,14 @@ public class Result
 ///         command.Email,
 ///         hashedPassword
 ///     );
-///     
+///
 ///     // Persist
 ///     await _repository.AddAsync(@operator, ct);
-///     
+///
 ///     // Return created ID
 ///     return Result.Success(@operator.Id);
 /// }
-/// 
+///
 /// // In API controller:
 /// var result = await mediator.Send(command);
 /// if (result.IsFailure)
@@ -205,13 +234,13 @@ public sealed class Result<TValue> : Result
 
     /// <summary>
     /// Get the value returned by successful operation.
-    /// 
+    ///
     /// IMPORTANT SAFETY NOTES:
     /// - Only access this property if IsSuccess is true
     /// - Throws InvalidOperationException if accessed on failure result
     /// - For nullable reference types (e.g., string?), this can return null on success
     /// - For non-nullable reference types, null check is not necessary after IsSuccess check
-    /// 
+    ///
     /// Best Practice Pattern:
     /// <code>
     /// var result = await mediator.Send(command);
@@ -226,7 +255,7 @@ public sealed class Result<TValue> : Result
     ///     return BadRequest(result.Error);
     /// }
     /// </code>
-    /// 
+    ///
     /// Anti-Pattern (DON'T DO THIS):
     /// <code>
     /// var result = await mediator.Send(command);
@@ -256,5 +285,34 @@ public sealed class Result<TValue> : Result
         : base(isSuccess, error)
     {
         _value = value;
+    }
+
+    /// <summary>
+    /// Match pattern for Result with return value.
+    /// Executes onSuccess or onFailure function based on result state.
+    /// </summary>
+    /// <typeparam name="TResult">Type of value returned by match functions</typeparam>
+    /// <param name="onSuccess">Function to execute if operation succeeded (receives value)</param>
+    /// <param name="onFailure">Function to execute if operation failed (receives error)</param>
+    public TResult Match<TResult>(
+        Func<TValue, TResult> onSuccess,
+        Func<Error, TResult> onFailure)
+    {
+        return IsSuccess
+            ? onSuccess(Value)
+            : onFailure(Error);
+    }
+
+    /// <summary>
+    /// Async match pattern for Result with return value.
+    /// Executes onSuccess or onFailure async function based on result state.
+    /// </summary>
+    public async Task<TResult> Match<TResult>(
+        Func<TValue, Task<TResult>> onSuccess,
+        Func<Error, Task<TResult>> onFailure)
+    {
+        return IsSuccess
+            ? await onSuccess(Value)
+            : await onFailure(Error);
     }
 }
