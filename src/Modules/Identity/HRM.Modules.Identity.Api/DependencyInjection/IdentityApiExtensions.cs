@@ -1,7 +1,7 @@
-using HRM.Modules.Identity.API.Endpoints;
+using HRM.Modules.Identity.Api.Endpoints;
 using Microsoft.AspNetCore.Routing;
 
-namespace HRM.Modules.Identity.API.DependencyInjection;
+namespace HRM.Modules.Identity.Api.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering Identity API endpoints

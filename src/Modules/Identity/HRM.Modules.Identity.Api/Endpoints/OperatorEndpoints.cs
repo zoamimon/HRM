@@ -1,5 +1,5 @@
 using HRM.BuildingBlocks.Infrastructure.Extensions;
-using HRM.Modules.Identity.API.Contracts;
+using HRM.Modules.Identity.Api.Contracts;
 using HRM.Modules.Identity.Application.Commands.ActivateOperator;
 using HRM.Modules.Identity.Application.Commands.RegisterOperator;
 using HRM.Modules.Identity.Domain.Repositories;
@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace HRM.Modules.Identity.API.Endpoints;
+namespace HRM.Modules.Identity.Api.Endpoints;
 
 /// <summary>
 /// Minimal API endpoints for Operator operations.

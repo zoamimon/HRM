@@ -1,4 +1,4 @@
-namespace HRM.Modules.Identity.API.Contracts;
+namespace HRM.Modules.Identity.Api.Contracts;
 
 /// <summary>
 /// Request DTO for registering a new operator
