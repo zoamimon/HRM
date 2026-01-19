@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -266,7 +267,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     private void LogResponse(string requestName, TResponse response, long elapsedMilliseconds)
     {
         // Check if response is Result type (commands)
-        if (response is Results.Result result)
+        if (response is Result result)
         {
             if (result.IsSuccess)
             {
@@ -282,7 +283,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
                     "{RequestName} failed in {ElapsedMilliseconds}ms: {ErrorCode} - {ErrorMessage}",
                     requestName,
                     elapsedMilliseconds,
-                    result.Error.Code,
+                    result.Error!.Code,
                     result.Error.Message
                 );
             }

@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Application.Abstractions.Commands;
+using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using MediatR;
 
@@ -344,7 +345,7 @@ public sealed class UnitOfWorkBehavior<TRequest, TResponse> : IPipelineBehavior<
         // Check if response is Result or Result<T>
         return response switch
         {
-            Results.Result result => result.IsSuccess,
+            Result result => result.IsSuccess,
             _ => false
         };
     }
