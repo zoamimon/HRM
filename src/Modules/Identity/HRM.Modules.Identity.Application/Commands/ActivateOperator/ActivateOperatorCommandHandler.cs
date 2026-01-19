@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Application.Abstractions.Messaging;
+using HRM.BuildingBlocks.Application.Abstractions.Commands;
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using HRM.Modules.Identity.Domain.Errors;
 using HRM.Modules.Identity.Domain.Repositories;

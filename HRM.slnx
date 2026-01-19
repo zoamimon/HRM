@@ -16,4 +16,11 @@
     <Project Path="src/Modules/Identity/HRM.Modules.Identity.Infrastructure/HRM.Modules.Identity.Infrastructure.csproj" Id="c4d5e6f7-a8b9-4c0d-1e2f-3a4b5c6d7e8f" />
     <Project Path="src/Modules/Identity/HRM.Modules.Identity.API/HRM.Modules.Identity.API.csproj" Id="b5c6d7e8-f9a0-4b1c-2d3e-4f5a6b7c8d9e" />
   </Folder>
+  <Folder Name="/src/Database/" />
+  <Folder Name="/src/Database/Identity/">
+    <File Path="src/Database/Identity/001_CreateOperatorsTable.sql" />
+    <File Path="src/Database/Identity/002_CreateIndexes.sql" />
+    <File Path="src/Database/Identity/003_SeedAdminOperator.sql" />
+    <File Path="src/Database/Identity/README.md" />
+  </Folder>
 </Solution>

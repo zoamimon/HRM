@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Application.Abstractions.Messaging;
+using HRM.BuildingBlocks.Application.Abstractions.Commands;
 
 namespace HRM.Modules.Identity.Application.Commands.RegisterOperator;
 

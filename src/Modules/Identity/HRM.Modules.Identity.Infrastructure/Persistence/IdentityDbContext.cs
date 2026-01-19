@@ -1,6 +1,7 @@
 using System.Reflection;
 using HRM.BuildingBlocks.Infrastructure.Persistence;
 using HRM.Modules.Identity.Domain.Entities;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRM.Modules.Identity.Infrastructure.Persistence;
@@ -44,8 +45,10 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence;
 /// </summary>
 public sealed class IdentityDbContext : ModuleDbContext
 {
-    public IdentityDbContext(DbContextOptions<IdentityDbContext> options)
-        : base(options)
+    public IdentityDbContext(
+        DbContextOptions<IdentityDbContext> options,
+        IPublisher publisher)
+        : base(options, publisher)
     {
     }
 
