@@ -162,6 +162,15 @@ public abstract class OutboxProcessor : BackgroundService
         var dbContext = GetDbContext(scope.ServiceProvider);
         var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
 
+        // Validate ModuleName is set
+        if (string.IsNullOrWhiteSpace(dbContext.ModuleName))
+        {
+            throw new InvalidOperationException(
+                $"ModuleName must be set in derived DbContext. " +
+                $"Override the ModuleName property in {dbContext.GetType().Name} to provide a unique module identifier."
+            );
+        }
+
         // Acquire distributed lock
         var lockResource = $"OutboxProcessor_{dbContext.ModuleName}";
         var lockAcquired = await TryAcquireLockAsync(dbContext, lockResource, cancellationToken);
