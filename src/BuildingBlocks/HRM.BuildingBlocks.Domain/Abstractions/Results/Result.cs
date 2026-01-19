@@ -28,23 +28,21 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.Results;
 ///     var @operator = await _repository.GetByIdAsync(command.OperatorId, ct);
 ///     if (@operator is null)
 ///         return Result.Failure(
-///             Error.NotFound("Operator.NotFound", "Operator not found")
+///             new NotFoundError("Operator.NotFound", "Operator not found")
 ///         );
 ///
 ///     if (@operator.IsSystemOperator())
 ///         return Result.Failure(
-///             Error.Forbidden("Operator.CannotDelete", "Cannot delete system operator")
+///             new ForbiddenError("Operator.CannotDelete", "Cannot delete system operator")
 ///         );
 ///
 ///     _repository.Remove(@operator);
 ///     return Result.Success();
 /// }
 ///
-/// // In API controller:
+/// // In API layer:
 /// var result = await mediator.Send(command);
-/// if (result.IsFailure)
-///     return BadRequest(result.Error);
-/// return NoContent();
+/// return result.ToHttpResult(); // Maps DomainError to HTTP status
 /// </code>
 /// </summary>
 public class Result
@@ -64,41 +62,38 @@ public class Result
     /// <summary>
     /// Error details if operation failed.
     /// Only populated when IsFailure is true.
-    /// Contains Error.None when IsSuccess is true.
+    /// Null when IsSuccess is true.
     /// </summary>
-    public Error Error { get; }
+    public DomainError? Error { get; }
 
     /// <summary>
     /// Protected constructor to enforce factory method usage.
     /// Validates that success results have no error and failure results have an error.
-    ///
-    /// IMPORTANT: Validates using ErrorType enum instead of reference equality.
-    /// This is crucial because Error is a record and may be recreated/deserialized.
     /// </summary>
     /// <param name="isSuccess">Whether operation succeeded</param>
-    /// <param name="error">Error details (must be Error.None for success)</param>
+    /// <param name="error">Error details (must be null for success)</param>
     /// <exception cref="InvalidOperationException">
     /// Thrown when validation fails:
-    /// - Success result with non-None error
-    /// - Failure result with None error
+    /// - Success result with non-null error
+    /// - Failure result with null error
     /// </exception>
-    protected Result(bool isSuccess, Error error)
+    protected Result(bool isSuccess, DomainError? error)
     {
-        // Validate: Success result must have Error.None (ErrorType.None)
-        if (isSuccess && error.Type != ErrorType.None)
+        // Validate: Success result must not have error
+        if (isSuccess && error is not null)
         {
             throw new InvalidOperationException(
                 "Success result cannot have an error. " +
-                "Use Error.None for successful results or call Result.Success()."
+                "Pass null for error parameter or call Result.Success()."
             );
         }
 
-        // Validate: Failure result must have a real error (not ErrorType.None)
-        if (!isSuccess && error.Type == ErrorType.None)
+        // Validate: Failure result must have an error
+        if (!isSuccess && error is null)
         {
             throw new InvalidOperationException(
                 "Failure result must have an error. " +
-                "Use Error.NotFound/Conflict/Validation/etc. or call Result.Failure(error)."
+                "Use NotFoundError/ConflictError/ValidationError/etc. or call Result.Failure(error)."
             );
         }
 
@@ -111,15 +106,15 @@ public class Result
     /// Used when operation succeeds but doesn't return data.
     /// </summary>
     /// <returns>Result indicating successful operation</returns>
-    public static Result Success() => new(true, Error.None);
+    public static Result Success() => new(true, null);
 
     /// <summary>
     /// Create a failure result without return value.
     /// Used when operation fails for expected business reasons.
     /// </summary>
-    /// <param name="error">Error details explaining why operation failed</param>
+    /// <param name="error">Domain error explaining why operation failed</param>
     /// <returns>Result indicating failed operation</returns>
-    public static Result Failure(Error error) => new(false, error);
+    public static Result Failure(DomainError error) => new(false, error);
 
     /// <summary>
     /// Create a success result with return value.
@@ -129,16 +124,16 @@ public class Result
     /// <param name="value">Value returned by successful operation</param>
     /// <returns>Result containing the value</returns>
     public static Result<TValue> Success<TValue>(TValue value)
-        => new(value, true, Error.None);
+        => new(value, true, null);
 
     /// <summary>
     /// Create a failure result with value type.
     /// Used when operation fails for commands that would return a value on success.
     /// </summary>
     /// <typeparam name="TValue">Type of value that would be returned on success</typeparam>
-    /// <param name="error">Error details explaining why operation failed</param>
+    /// <param name="error">Domain error explaining why operation failed</param>
     /// <returns>Result indicating failed operation</returns>
-    public static Result<TValue> Failure<TValue>(Error error)
+    public static Result<TValue> Failure<TValue>(DomainError error)
         => new(default, false, error);
 
     /// <summary>
@@ -149,12 +144,12 @@ public class Result
     /// <param name="onFailure">Action to execute if operation failed (receives error)</param>
     public void Match(
         Action onSuccess,
-        Action<Error> onFailure)
+        Action<DomainError> onFailure)
     {
         if (IsSuccess)
             onSuccess();
         else
-            onFailure(Error);
+            onFailure(Error!);
     }
 
     /// <summary>
@@ -163,11 +158,11 @@ public class Result
     /// </summary>
     public async Task<TResult> Match<TResult>(
         Func<Task<TResult>> onSuccess,
-        Func<Error, Task<TResult>> onFailure)
+        Func<DomainError, Task<TResult>> onFailure)
     {
         return IsSuccess
             ? await onSuccess()
-            : await onFailure(Error);
+            : await onFailure(Error!);
     }
 }
 
@@ -280,8 +275,8 @@ public sealed class Result<TValue> : Result
     /// </summary>
     /// <param name="value">Value to return (only meaningful if isSuccess is true)</param>
     /// <param name="isSuccess">Whether operation succeeded</param>
-    /// <param name="error">Error details (must be Error.None if isSuccess is true)</param>
-    internal Result(TValue? value, bool isSuccess, Error error)
+    /// <param name="error">Error details (must be null if isSuccess is true)</param>
+    internal Result(TValue? value, bool isSuccess, DomainError? error)
         : base(isSuccess, error)
     {
         _value = value;
@@ -296,11 +291,11 @@ public sealed class Result<TValue> : Result
     /// <param name="onFailure">Function to execute if operation failed (receives error)</param>
     public TResult Match<TResult>(
         Func<TValue, TResult> onSuccess,
-        Func<Error, TResult> onFailure)
+        Func<DomainError, TResult> onFailure)
     {
         return IsSuccess
             ? onSuccess(Value)
-            : onFailure(Error);
+            : onFailure(Error!);
     }
 
     /// <summary>
@@ -309,10 +304,10 @@ public sealed class Result<TValue> : Result
     /// </summary>
     public async Task<TResult> Match<TResult>(
         Func<TValue, Task<TResult>> onSuccess,
-        Func<Error, Task<TResult>> onFailure)
+        Func<DomainError, Task<TResult>> onFailure)
     {
         return IsSuccess
             ? await onSuccess(Value)
-            : await onFailure(Error);
+            : await onFailure(Error!);
     }
 }
