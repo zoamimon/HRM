@@ -7,6 +7,7 @@ using HRM.BuildingBlocks.Application.Behaviors;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -86,6 +87,11 @@ public static class InfrastructureServiceExtensions
         // NOTE: ICurrentUserService is shared across all modules for authorization
         // IPasswordHasher and ITokenService are registered in Identity module (authentication-specific)
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        // Claims Transformation
+        // Normalizes role claims from various formats (comma-separated, multiple claims, etc.)
+        // into standard ClaimTypes.Role claims for native ASP.NET Core authorization support
+        services.AddScoped<IClaimsTransformation, RolesClaimsTransformation>();
 
         // Authorization Services
         // NOTE: DataScopingService requires IDbConnection which must be registered at module level

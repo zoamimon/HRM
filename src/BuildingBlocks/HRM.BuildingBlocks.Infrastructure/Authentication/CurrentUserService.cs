@@ -16,7 +16,13 @@ namespace HRM.BuildingBlocks.Infrastructure.Authentication;
 /// - "UserType" → UserType enum (custom claim)
 /// - "ScopeLevel" → ScopeLevel enum (custom claim, only for Users)
 /// - "EmployeeId" → EmployeeId (custom claim, only for Users)
-/// - "Roles" → Roles array (comma-separated, custom claim)
+/// - ClaimTypes.Role → Roles array (normalized by RolesClaimsTransformation middleware)
+///
+/// Role Handling:
+/// - Roles are normalized by RolesClaimsTransformation middleware
+/// - Multiple role formats are supported (comma-separated, multiple claims, etc.)
+/// - All roles are transformed into standard ClaimTypes.Role claims
+/// - Native ASP.NET Core authorization works: [Authorize(Roles = "Admin")], User.IsInRole("Admin")
 ///
 /// Lifecycle:
 /// - Registered as Scoped service (per HTTP request)
@@ -27,8 +33,9 @@ namespace HRM.BuildingBlocks.Infrastructure.Authentication;
 /// 1. Client sends JWT token in Authorization header
 /// 2. JWT authentication middleware validates token
 /// 3. Middleware populates HttpContext.User.Claims
-/// 4. CurrentUserService reads claims from HttpContext.User
-/// 5. Application code uses ICurrentUserService for authorization
+/// 4. RolesClaimsTransformation normalizes role claims
+/// 5. CurrentUserService reads claims from HttpContext.User
+/// 6. Application code uses ICurrentUserService for authorization
 ///
 /// Usage Example:
 /// <code>
@@ -210,26 +217,25 @@ public sealed class CurrentUserService : ICurrentUserService
     }
 
     /// <summary>
-    /// Gets the current user's roles from JWT "Roles" claim
-    /// Returns read-only collection of role names (comma-separated in claim)
+    /// Gets the current user's roles from normalized ClaimTypes.Role claims
+    /// Roles are normalized by RolesClaimsTransformation middleware from various formats
+    /// Returns read-only collection of role names
     /// Never returns null - returns empty collection if no roles
     /// </summary>
     public IReadOnlyCollection<string> Roles
     {
         get
         {
-            var rolesClaim = User?.FindFirst("Roles")?.Value
-                          ?? User?.FindFirst(ClaimTypes.Role)?.Value;
-
-            if (string.IsNullOrEmpty(rolesClaim))
+            if (User == null)
             {
                 return Array.Empty<string>();
             }
 
-            // Split comma-separated roles and trim whitespace
-            return rolesClaim
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(role => role.Trim())
+            // Read all normalized ClaimTypes.Role claims
+            // RolesClaimsTransformation already parsed and normalized all role formats
+            return User
+                .FindAll(ClaimTypes.Role)
+                .Select(c => c.Value)
                 .ToArray();
         }
     }
@@ -242,7 +248,8 @@ public sealed class CurrentUserService : ICurrentUserService
 
     /// <summary>
     /// Checks if the current user has a specific role
-    /// Case-insensitive comparison
+    /// Uses native ASP.NET Core User.IsInRole() with normalized ClaimTypes.Role claims
+    /// Case-sensitive comparison (depends on role normalization)
     /// </summary>
     /// <param name="role">Role name to check</param>
     /// <returns>True if user has the role, false otherwise</returns>
@@ -253,15 +260,16 @@ public sealed class CurrentUserService : ICurrentUserService
             return false;
         }
 
-        return Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase));
+        // Use native ASP.NET Core IsInRole() with normalized claims
+        return User?.IsInRole(role) ?? false;
     }
 
     /// <summary>
     /// Checks if the current user has a specific role
-    /// Case-insensitive comparison (alias for HasRole)
-    /// Cleaner syntax for role checks in Application layer
+    /// Alias for HasRole - provides cleaner syntax for role checks in Application layer
+    /// Uses native ASP.NET Core User.IsInRole() with normalized ClaimTypes.Role claims
     /// </summary>
-    /// <param name="role">Role name to check (case-insensitive)</param>
+    /// <param name="role">Role name to check</param>
     /// <returns>True if user has the role, false otherwise</returns>
     public bool IsInRole(string role) => HasRole(role);
 
