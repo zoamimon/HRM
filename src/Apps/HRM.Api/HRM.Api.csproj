@@ -20,7 +20,7 @@
     <!-- ASP.NET Core packages -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.OpenApi" Version="2.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.1" />
 
     <!-- Database packages -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
