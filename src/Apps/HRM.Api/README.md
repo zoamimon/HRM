@@ -15,7 +15,7 @@ This is a **Modular Monolith** application that composes multiple bounded contex
 
 ### Prerequisites
 
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - SQL Server (or SQL Server in Docker)
 - Visual Studio 2022 / VS Code / Rider
 
@@ -42,8 +42,8 @@ Update `appsettings.json` or `appsettings.Development.json`:
 
 1. Run Identity module migrations:
 ```bash
-cd src/HRM.Api
-dotnet ef database update --project ../Modules/Identity/HRM.Modules.Identity.Infrastructure
+cd src/Apps/HRM.Api
+dotnet ef database update --project ../../Modules/Identity/HRM.Modules.Identity.Infrastructure
 ```
 
 2. Or use SQL scripts in `/src/Database/Identity/`:
@@ -57,7 +57,7 @@ dotnet ef database update --project ../Modules/Identity/HRM.Modules.Identity.Inf
 ### Run the Application
 
 ```bash
-cd src/HRM.Api
+cd src/Apps/HRM.Api
 dotnet run
 ```
 
