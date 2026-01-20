@@ -8,12 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Blazor packages -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.1" />
-
-    <!-- HTTP Client for calling HRM.Api -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
-
     <!-- FluentValidation for client-side validation -->
     <PackageReference Include="FluentValidation" Version="11.11.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
