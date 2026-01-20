@@ -66,27 +66,51 @@ The API will start at:
 - HTTPS: https://localhost:5001
 - OpenAPI JSON: http://localhost:5000/openapi/v1.json (Development only)
 
-### Viewing API Documentation
+### OpenAPI Documentation
 
-This API uses **.NET 10 OpenAPI standard** (not Swashbuckle). To view interactive documentation:
+This API uses **.NET 10 native OpenAPI** (minimal approach):
+- ✅ OpenAPI JSON contract: `/openapi/v1.json`
+- ✅ Auto-detects security from `.RequireAuthorization()` on endpoints
+- ❌ No built-in Swagger UI (by design)
 
-**Option 1: Scalar UI (Recommended)**
+**Why no Swagger UI?**
+- .NET 10 OpenAPI is designed for **contract generation**, not UI
+- Optimized for **tooling**, **SDK generation**, and **service-to-service** contracts
+- Keeps API lightweight and production-ready
+
+**Testing the API:**
+
+**Option 1: Postman / Insomnia (Recommended for development)**
+```
+1. Import OpenAPI: http://localhost:5000/openapi/v1.json
+2. Add Bearer token in Authorization header
+3. Send requests
+```
+
+**Option 2: HTTP Files (VS Code / Rider)**
+```http
+### Register Operator
+POST http://localhost:5000/api/identity/operators/register
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "john.doe",
+  "email": "john.doe@company.com",
+  ...
+}
+```
+
+**Option 3: Scalar UI (Modern OpenAPI viewer)**
 ```bash
-# Install Scalar CLI globally
 npm install -g @scalar/cli
-
-# View API documentation
 scalar reference http://localhost:5000/openapi/v1.json
 ```
 
-**Option 2: Swagger Editor Online**
-1. Go to https://editor.swagger.io/
-2. File → Import URL
-3. Enter: http://localhost:5000/openapi/v1.json
-
-**Option 3: Use OpenAPI JSON directly**
-```bash
-curl http://localhost:5000/openapi/v1.json | jq
+**Option 4: Swagger Editor Online**
+```
+https://editor.swagger.io/
+→ File → Import URL → http://localhost:5000/openapi/v1.json
 ```
 
 ## Available Endpoints
