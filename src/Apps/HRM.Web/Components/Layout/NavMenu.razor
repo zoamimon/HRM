@@ -1,0 +1,44 @@
+<div class="nav-menu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="operators/register">
+                <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Register Operator
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="operators/list">
+                <span class="bi bi-list-ul" aria-hidden="true"></span> Operators List
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+<style>
+    .nav-menu {
+        background-color: #343a40;
+        height: 100vh;
+        padding-top: 1rem;
+    }
+
+    .nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        padding: 0.75rem 1rem;
+        display: block;
+        text-decoration: none;
+    }
+
+    .nav-link:hover {
+        color: white;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-link.active {
+        color: white;
+        background-color: #0d6efd;
+    }
+</style>
