@@ -10,40 +10,39 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Controllers and Minimal API support
 builder.Services.AddEndpointsApiExplorer();
 
-// Configure Swagger/OpenAPI
-builder.Services.AddSwaggerGen(options =>
+// Configure OpenAPI (.NET 10 Standard - NO Swashbuckle)
+builder.Services.AddOpenApi(options =>
 {
-    options.SwaggerDoc("v1", new()
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        Title = "HRM API",
-        Version = "v1",
-        Description = "Human Resource Management System - Modular Monolith Architecture"
-    });
-
-    // Add JWT authentication to Swagger
-    options.AddSecurityDefinition("Bearer", new()
-    {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "JWT Authorization header using the Bearer scheme. Enter your token below."
-    });
-
-    options.AddSecurityRequirement(new()
-    {
+        // Set document metadata
+        document.Info = new()
         {
-            new()
-            {
-                Reference = new()
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+            Title = "HRM API",
+            Version = "v1",
+            Description = "Human Resource Management System - Modular Monolith Architecture"
+        };
+
+        // Create Bearer JWT security scheme
+        var bearerScheme = context.CreateSecurityScheme(
+            name: "Bearer",
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            location: "header",
+            description: "JWT Authorization header using the Bearer scheme. Enter your token below."
+        );
+
+        // Add security scheme to document
+        document.Components ??= new();
+        document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+
+        // Add security requirement to document
+        document.SecurityRequirements.Add(
+            context.CreateSecurityRequirement("Bearer")
+        );
+
+        return Task.CompletedTask;
     });
 });
 
@@ -95,15 +94,11 @@ builder.Services.AddModules(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure Swagger for Development
+// Map OpenAPI endpoint (.NET 10 Standard)
+// OpenAPI JSON available at: /openapi/v1.json
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "HRM API v1");
-        options.RoutePrefix = string.Empty; // Serve Swagger at root: http://localhost:5000/
-    });
+    app.MapOpenApi();
 }
 
 // Enable HTTPS redirection

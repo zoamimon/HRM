@@ -64,7 +64,30 @@ dotnet run
 The API will start at:
 - HTTP: http://localhost:5000
 - HTTPS: https://localhost:5001
-- Swagger UI: http://localhost:5000/ (Development only)
+- OpenAPI JSON: http://localhost:5000/openapi/v1.json (Development only)
+
+### Viewing API Documentation
+
+This API uses **.NET 10 OpenAPI standard** (not Swashbuckle). To view interactive documentation:
+
+**Option 1: Scalar UI (Recommended)**
+```bash
+# Install Scalar CLI globally
+npm install -g @scalar/cli
+
+# View API documentation
+scalar reference http://localhost:5000/openapi/v1.json
+```
+
+**Option 2: Swagger Editor Online**
+1. Go to https://editor.swagger.io/
+2. File → Import URL
+3. Enter: http://localhost:5000/openapi/v1.json
+
+**Option 3: Use OpenAPI JSON directly**
+```bash
+curl http://localhost:5000/openapi/v1.json | jq
+```
 
 ## Available Endpoints
 
