@@ -101,7 +101,8 @@ public static class InfrastructureServiceExtensions
         //     new SqlConnection(configuration.GetConnectionString("ModuleDb")));
 
         // EF Core Interceptors
-        services.AddSingleton<AuditInterceptor>();
+        // NOTE: AuditInterceptor is Scoped because it depends on ICurrentUserService (Scoped)
+        services.AddScoped<AuditInterceptor>();
 
         // MediatR with Pipeline Behaviors
         // Register from Application assembly where commands, queries, and behaviors are defined
