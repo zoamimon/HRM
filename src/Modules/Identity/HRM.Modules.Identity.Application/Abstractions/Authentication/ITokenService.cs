@@ -342,6 +342,35 @@ public interface ITokenService
     /// </summary>
     /// <returns>Cryptographically secure random token string</returns>
     string GenerateRefreshToken();
+
+    /// <summary>
+    /// Generates a cryptographically secure random refresh token with custom expiration.
+    /// This overload supports "Remember Me" functionality by allowing custom expiry dates.
+    ///
+    /// Same security properties as the parameterless version, but with custom expiration time.
+    ///
+    /// Usage (Remember Me):
+    /// <code>
+    /// var expiryDays = request.RememberMe
+    ///     ? _jwtOptions.RememberMeExpiryDays
+    ///     : _jwtOptions.RefreshTokenExpiryDays;
+    ///
+    /// var expiresAt = DateTime.UtcNow.AddDays(expiryDays);
+    /// var refreshToken = _tokenService.GenerateRefreshToken(expiresAt);
+    ///
+    /// // Store with custom expiration
+    /// var tokenEntity = RefreshToken.Create(
+    ///     userId,
+    ///     refreshToken,
+    ///     expiresAt,  // Custom expiry for Remember Me
+    ///     ipAddress,
+    ///     userAgent
+    /// );
+    /// </code>
+    /// </summary>
+    /// <param name="expiresAt">Custom expiration date/time (UTC)</param>
+    /// <returns>Cryptographically secure random token string</returns>
+    string GenerateRefreshToken(DateTime expiresAt);
 }
 
 /// <summary>

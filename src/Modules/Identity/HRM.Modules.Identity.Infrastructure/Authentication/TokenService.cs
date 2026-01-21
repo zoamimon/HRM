@@ -261,4 +261,44 @@ public sealed class TokenService : ITokenService
             .Replace("/", "_")  // Replace / with _ (URL-safe)
             .Replace("=", "");  // Remove padding
     }
+
+    /// <summary>
+    /// Generates a cryptographically secure random refresh token with custom expiration.
+    /// Supports "Remember Me" functionality by accepting custom expiry dates.
+    ///
+    /// The expiration date parameter is included for completeness (handlers pass it to entity),
+    /// but the token generation itself is identical to the parameterless version.
+    ///
+    /// Usage Pattern (Remember Me):
+    /// <code>
+    /// var expiryDays = request.RememberMe
+    ///     ? _jwtOptions.RememberMeExpiryDays
+    ///     : _jwtOptions.RefreshTokenExpiryDays;
+    ///
+    /// var expiresAt = DateTime.UtcNow.AddDays(expiryDays);
+    /// var token = _tokenService.GenerateRefreshToken(expiresAt);
+    ///
+    /// // Store with custom expiration
+    /// var tokenEntity = RefreshToken.Create(
+    ///     userId,
+    ///     token,
+    ///     expiresAt,
+    ///     ipAddress,
+    ///     userAgent
+    /// );
+    /// </code>
+    ///
+    /// Security Note:
+    /// - The expiresAt parameter is NOT embedded in the token
+    /// - Expiration is enforced at validation time (database lookup)
+    /// - Token itself is still opaque random bytes
+    /// </summary>
+    /// <param name="expiresAt">Custom expiration date/time (UTC). Not embedded in token.</param>
+    /// <returns>Cryptographically secure random token string (identical format to parameterless version)</returns>
+    public string GenerateRefreshToken(DateTime expiresAt)
+    {
+        // Token generation is identical - expiration is handled by the entity/database
+        // The expiresAt parameter is provided for API consistency and to pass to RefreshToken.Create()
+        return GenerateRefreshToken();
+    }
 }

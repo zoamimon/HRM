@@ -154,4 +154,24 @@ public sealed class JwtOptions
     /// - High security: 1-3 days
     /// </summary>
     public int RefreshTokenExpiryDays { get; set; } = 7;
+
+    /// <summary>
+    /// Refresh token expiration time in days when "Remember Me" is enabled
+    /// Default: 30 days
+    ///
+    /// Extended expiration for better UX:
+    /// - User stays logged in longer on trusted devices
+    /// - Still revocable from database if needed
+    /// - Balance between security and convenience
+    ///
+    /// Recommendations:
+    /// - Development: 30 days
+    /// - Production: 30 days
+    /// - High security: 14 days
+    ///
+    /// Usage:
+    /// When user checks "Remember Me" during login, use this value
+    /// instead of RefreshTokenExpiryDays for refresh token expiration
+    /// </summary>
+    public int RememberMeExpiryDays { get; set; } = 30;
 }

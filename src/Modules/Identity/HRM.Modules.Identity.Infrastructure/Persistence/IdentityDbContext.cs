@@ -66,6 +66,13 @@ public sealed class IdentityDbContext : ModuleDbContext
     public DbSet<Operator> Operators => Set<Operator>();
 
     /// <summary>
+    /// Refresh tokens table
+    /// Contains refresh tokens for JWT authentication and session management
+    /// Enables multi-device sessions, token revocation, and security audit trail
+    /// </summary>
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    /// <summary>
     /// Configure entity mappings
     /// Applies all IEntityTypeConfiguration from current assembly
     /// </summary>
