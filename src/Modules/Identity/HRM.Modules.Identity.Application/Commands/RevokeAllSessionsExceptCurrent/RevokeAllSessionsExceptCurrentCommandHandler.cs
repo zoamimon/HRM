@@ -1,9 +1,7 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using HRM.Modules.Identity.Application.Errors;
-using HRM.Modules.Identity.Domain.Entities;
-using HRM.Modules.Identity.Infrastructure.Persistence;
+using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurrent;
 
@@ -12,7 +10,7 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 /// Revokes all operator's sessions except current device
 ///
 /// Dependencies:
-/// - IdentityDbContext: Access RefreshTokens and commit
+/// - IRefreshTokenRepository: Access RefreshTokens and commit
 ///
 /// Business Logic:
 /// 1. Verify current token exists and belongs to operator
@@ -36,11 +34,11 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 public sealed class RevokeAllSessionsExceptCurrentCommandHandler
     : IRequestHandler<RevokeAllSessionsExceptCurrentCommand, Result<RevokeAllSessionsResult>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public RevokeAllSessionsExceptCurrentCommandHandler(IdentityDbContext dbContext)
+    public RevokeAllSessionsExceptCurrentCommandHandler(IRefreshTokenRepository refreshTokenRepository)
     {
-        _dbContext = dbContext;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result<RevokeAllSessionsResult>> Handle(
@@ -48,11 +46,10 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         CancellationToken cancellationToken)
     {
         // 1. Verify current token exists and belongs to operator
-        var currentToken = await _dbContext.RefreshTokens
-            .SingleOrDefaultAsync(
-                rt => rt.Token == request.CurrentRefreshToken &&
-                      rt.OperatorId == request.OperatorId,
-                cancellationToken);
+        var currentToken = await _refreshTokenRepository.GetByTokenAndOperatorAsync(
+            request.CurrentRefreshToken,
+            request.OperatorId,
+            cancellationToken);
 
         if (currentToken is null)
         {
@@ -61,13 +58,10 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         }
 
         // 2. Find all active sessions for operator (except current)
-        var sessionsToRevoke = await _dbContext.RefreshTokens
-            .Where(rt =>
-                rt.OperatorId == request.OperatorId &&
-                rt.Id != currentToken.Id && // Exclude current
-                rt.RevokedAt == null &&     // Only active
-                rt.ExpiresAt > DateTime.UtcNow) // Not expired
-            .ToListAsync(cancellationToken);
+        var sessionsToRevoke = await _refreshTokenRepository.GetActiveSessionsExceptAsync(
+            request.OperatorId,
+            currentToken.Id,
+            cancellationToken);
 
         // 3. If no sessions to revoke, return success
         if (sessionsToRevoke.Count == 0)

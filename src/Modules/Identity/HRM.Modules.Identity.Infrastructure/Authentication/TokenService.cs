@@ -5,6 +5,7 @@ using System.Text;
 using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 

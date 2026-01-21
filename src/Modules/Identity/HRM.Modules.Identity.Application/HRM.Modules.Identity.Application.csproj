@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HRM.Modules.Identity.Domain\HRM.Modules.Identity.Domain.csproj" />
-    <ProjectReference Include="..\HRM.Modules.Identity.Infrastructure\HRM.Modules.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\HRM.BuildingBlocks.Application\HRM.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\HRM.BuildingBlocks.Infrastructure\HRM.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>

@@ -1,4 +1,5 @@
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Domain.Repositories;
 using HRM.Modules.Identity.Infrastructure.Authentication;
 using HRM.Modules.Identity.Infrastructure.BackgroundServices;
@@ -101,6 +102,7 @@ public static class IdentityInfrastructureExtensions
         // 2. Register Repositories
         // Scoped: One instance per HTTP request
         services.AddScoped<IOperatorRepository, OperatorRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         // 3. Register Authentication Services
         // Singleton: Stateless services, safe to share across requests

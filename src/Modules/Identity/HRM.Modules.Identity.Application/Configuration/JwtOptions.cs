@@ -1,4 +1,4 @@
-namespace HRM.Modules.Identity.Infrastructure.Authentication;
+namespace HRM.Modules.Identity.Application.Configuration;
 
 /// <summary>
 /// Configuration options for JWT token generation
@@ -12,7 +12,8 @@ namespace HRM.Modules.Identity.Infrastructure.Authentication;
 ///     "Issuer": "HRM.Api",
 ///     "Audience": "HRM.Clients",
 ///     "AccessTokenExpiryMinutes": 15,
-///     "RefreshTokenExpiryDays": 7
+///     "RefreshTokenExpiryDays": 7,
+///     "RememberMeExpiryDays": 30
 ///   }
 /// }
 /// </code>
@@ -20,17 +21,17 @@ namespace HRM.Modules.Identity.Infrastructure.Authentication;
 /// Registration (Program.cs):
 /// <code>
 /// services.Configure<JwtOptions>(
-///     configuration.GetSection("JwtSettings")
+///     configuration.GetSection(JwtOptions.SectionName)
 /// );
 /// </code>
 ///
-/// Usage in TokenService:
+/// Usage in Command Handlers:
 /// <code>
-/// public class TokenService : ITokenService
+/// public class LoginCommandHandler
 /// {
 ///     private readonly JwtOptions _jwtOptions;
 ///
-///     public TokenService(IOptions<JwtOptions> jwtOptions)
+///     public LoginCommandHandler(IOptions<JwtOptions> jwtOptions)
 ///     {
 ///         _jwtOptions = jwtOptions.Value;
 ///     }

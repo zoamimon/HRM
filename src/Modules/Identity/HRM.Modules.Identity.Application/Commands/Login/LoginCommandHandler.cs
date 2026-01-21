@@ -1,10 +1,9 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Repositories;
-using HRM.Modules.Identity.Infrastructure.Authentication;
-using HRM.Modules.Identity.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.Extensions.Options;
 
@@ -19,7 +18,7 @@ namespace HRM.Modules.Identity.Application.Commands.Login;
 /// - IPasswordHasher: Verify password against stored hash
 /// - ITokenService: Generate JWT and refresh tokens
 /// - JwtOptions: Get token expiry configuration
-/// - IdentityDbContext: Save refresh token (committed by UnitOfWorkBehavior)
+/// - IRefreshTokenRepository: Save refresh token (committed by UnitOfWorkBehavior)
 ///
 /// Security Features:
 /// - Constant-time password comparison (via BCrypt)
@@ -46,20 +45,20 @@ public sealed class LoginCommandHandler
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
-    private readonly IdentityDbContext _dbContext;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
     public LoginCommandHandler(
         IOperatorRepository operatorRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
-        IdentityDbContext dbContext)
+        IRefreshTokenRepository refreshTokenRepository)
     {
         _operatorRepository = operatorRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
-        _dbContext = dbContext;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result<LoginResponse>> Handle(
@@ -136,7 +135,7 @@ public sealed class LoginCommandHandler
             request.UserAgent
         );
 
-        _dbContext.RefreshTokens.Add(refreshTokenEntity);
+        _refreshTokenRepository.Add(refreshTokenEntity);
         // UnitOfWorkBehavior will commit
 
         // 9. Build and return response

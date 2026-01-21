@@ -1,12 +1,11 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Commands.Login;
+using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Entities;
-using HRM.Modules.Identity.Infrastructure.Authentication;
-using HRM.Modules.Identity.Infrastructure.Persistence;
+using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
@@ -16,7 +15,7 @@ namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
 /// Implements token rotation pattern for enhanced security
 ///
 /// Dependencies:
-/// - IdentityDbContext: Access RefreshTokens and commit
+/// - IRefreshTokenRepository: Access RefreshTokens and commit
 /// - ITokenService: Generate new tokens
 /// - JwtOptions: Get token expiry configuration
 ///
@@ -45,16 +44,16 @@ namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
 public sealed class RefreshTokenCommandHandler
     : IRequestHandler<RefreshTokenCommand, Result<LoginResponse>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
 
     public RefreshTokenCommandHandler(
-        IdentityDbContext dbContext,
+        IRefreshTokenRepository refreshTokenRepository,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions)
     {
-        _dbContext = dbContext;
+        _refreshTokenRepository = refreshTokenRepository;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
     }
@@ -64,11 +63,9 @@ public sealed class RefreshTokenCommandHandler
         CancellationToken cancellationToken)
     {
         // 1. Find and validate refresh token (with Operator data)
-        var existingToken = await _dbContext.RefreshTokens
-            .Include(rt => rt.Operator)
-            .SingleOrDefaultAsync(
-                rt => rt.Token == request.RefreshToken,
-                cancellationToken);
+        var existingToken = await _refreshTokenRepository.GetByTokenAsync(
+            request.RefreshToken,
+            cancellationToken);
 
         if (existingToken is null)
         {
@@ -131,7 +128,7 @@ public sealed class RefreshTokenCommandHandler
             request.UserAgent
         );
 
-        _dbContext.RefreshTokens.Add(newRefreshTokenEntity);
+        _refreshTokenRepository.Add(newRefreshTokenEntity);
         // UnitOfWorkBehavior will commit
 
         // 9. Build and return response
