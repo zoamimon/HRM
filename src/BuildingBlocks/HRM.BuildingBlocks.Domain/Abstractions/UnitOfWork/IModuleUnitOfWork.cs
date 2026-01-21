@@ -43,21 +43,15 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 /// - No namespace parsing (brittle)
 /// - Compile-time safety
 /// - Easy to test
+///
+/// Note: ModuleName Property
+/// - Inherited from IModuleContext via IUnitOfWork
+/// - No need to redeclare
+/// - IModuleContext.ModuleName already provides module identification
+/// - Used by UnitOfWorkBehavior for routing: uow.ModuleName == command.ModuleName
 /// </summary>
 public interface IModuleUnitOfWork : IUnitOfWork
 {
-    /// <summary>
-    /// Unique identifier for the module
-    /// Must match IModuleCommand.ModuleName
-    /// 
-    /// Examples:
-    /// - "Identity"
-    /// - "Personnel"
-    /// - "Payroll"
-    /// - "Organization"
-    /// 
-    /// CRITICAL: Must be unique across all modules
-    /// Used for routing commands to correct DbContext
-    /// </summary>
-    string ModuleName { get; }
+    // ModuleName inherited from IUnitOfWork -> IModuleContext
+    // No additional members needed
 }

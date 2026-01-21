@@ -1,6 +1,5 @@
 using FluentValidation;
 using FluentValidation.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.Errors;
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using MediatR;
 
@@ -94,17 +93,22 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
             // Get the TValue type parameter
             var valueType = typeof(T).GetGenericArguments()[0];
 
-            // Create ValidationError for each failure
-            var errors = failures
-                .Select(f => new ValidationError(f.PropertyName, f.ErrorMessage))
-                .ToArray();
+            // Group validation failures by property name
+            var errorsDictionary = failures
+                .GroupBy(f => f.PropertyName)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(f => f.ErrorMessage).ToArray()
+                );
 
-            // Call Result<TValue>.Failure(DomainError)
-            var validationError = DomainError.Validation(
+            // Create ValidationError with field-level details
+            var validationError = new ValidationError(
                 "Validation.Failed",
                 "One or more validation errors occurred",
-                errors);
+                errorsDictionary
+            );
 
+            // Call Result<TValue>.Failure(DomainError) using reflection
             var failureMethod = typeof(Result<>)
                 .MakeGenericType(valueType)
                 .GetMethod(nameof(Result<object>.Failure));
