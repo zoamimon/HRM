@@ -1,7 +1,7 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Entities;
+using HRM.Modules.Identity.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +12,7 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 /// Revokes all operator's sessions except current device
 ///
 /// Dependencies:
-/// - IModuleUnitOfWork: Access RefreshTokens and commit
+/// - IdentityDbContext: Access RefreshTokens and commit
 ///
 /// Business Logic:
 /// 1. Verify current token exists and belongs to operator
@@ -36,11 +36,11 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 public sealed class RevokeAllSessionsExceptCurrentCommandHandler
     : IRequestHandler<RevokeAllSessionsExceptCurrentCommand, Result<RevokeAllSessionsResult>>
 {
-    private readonly IModuleUnitOfWork _unitOfWork;
+    private readonly IdentityDbContext _dbContext;
 
-    public RevokeAllSessionsExceptCurrentCommandHandler(IModuleUnitOfWork unitOfWork)
+    public RevokeAllSessionsExceptCurrentCommandHandler(IdentityDbContext dbContext)
     {
-        _unitOfWork = unitOfWork;
+        _dbContext = dbContext;
     }
 
     public async Task<Result<RevokeAllSessionsResult>> Handle(
@@ -48,7 +48,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         CancellationToken cancellationToken)
     {
         // 1. Verify current token exists and belongs to operator
-        var currentToken = await _unitOfWork.Set<RefreshToken>()
+        var currentToken = await _dbContext.RefreshTokens
             .SingleOrDefaultAsync(
                 rt => rt.Token == request.CurrentRefreshToken &&
                       rt.OperatorId == request.OperatorId,
@@ -61,7 +61,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         }
 
         // 2. Find all active sessions for operator (except current)
-        var sessionsToRevoke = await _unitOfWork.Set<RefreshToken>()
+        var sessionsToRevoke = await _dbContext.RefreshTokens
             .Where(rt =>
                 rt.OperatorId == request.OperatorId &&
                 rt.Id != currentToken.Id && // Exclude current

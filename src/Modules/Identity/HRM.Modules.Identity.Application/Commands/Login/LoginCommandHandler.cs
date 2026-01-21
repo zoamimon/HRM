@@ -1,10 +1,10 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Repositories;
 using HRM.Modules.Identity.Infrastructure.Authentication;
+using HRM.Modules.Identity.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.Extensions.Options;
 
@@ -19,7 +19,7 @@ namespace HRM.Modules.Identity.Application.Commands.Login;
 /// - IPasswordHasher: Verify password against stored hash
 /// - ITokenService: Generate JWT and refresh tokens
 /// - JwtOptions: Get token expiry configuration
-/// - IModuleUnitOfWork: Save refresh token (committed by UnitOfWorkBehavior)
+/// - IdentityDbContext: Save refresh token (committed by UnitOfWorkBehavior)
 ///
 /// Security Features:
 /// - Constant-time password comparison (via BCrypt)
@@ -46,20 +46,20 @@ public sealed class LoginCommandHandler
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
-    private readonly IModuleUnitOfWork _unitOfWork;
+    private readonly IdentityDbContext _dbContext;
 
     public LoginCommandHandler(
         IOperatorRepository operatorRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
-        IModuleUnitOfWork unitOfWork)
+        IdentityDbContext dbContext)
     {
         _operatorRepository = operatorRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
-        _unitOfWork = unitOfWork;
+        _dbContext = dbContext;
     }
 
     public async Task<Result<LoginResponse>> Handle(
@@ -128,7 +128,7 @@ public sealed class LoginCommandHandler
         var refreshToken = _tokenService.GenerateRefreshToken(refreshTokenExpiry);
 
         // 8. Store refresh token in database
-        var refreshTokenEntity = RefreshToken.Create(
+        var refreshTokenEntity = Domain.Entities.RefreshToken.Create(
             @operator.Id,
             refreshToken,
             refreshTokenExpiry,
@@ -136,7 +136,7 @@ public sealed class LoginCommandHandler
             request.UserAgent
         );
 
-        _unitOfWork.Set<RefreshToken>().Add(refreshTokenEntity);
+        _dbContext.RefreshTokens.Add(refreshTokenEntity);
         // UnitOfWorkBehavior will commit
 
         // 9. Build and return response

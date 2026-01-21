@@ -1,4 +1,6 @@
+using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Entities;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Events;
 
 namespace HRM.Modules.Identity.Domain.Entities;
@@ -29,7 +31,7 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - OperatorRegisteredDomainEvent: Raised when new operator registered
 /// - OperatorActivatedDomainEvent: Raised when operator activated
 /// </summary>
-public sealed class Operator : Entity, IAggregateRoot
+public sealed class Operator : Entity, IAggregateRoot, IAuthenticatable
 {
     /// <summary>
     /// Unique username for login
@@ -321,4 +323,11 @@ public sealed class Operator : Entity, IAggregateRoot
         FullName = fullName;
         PhoneNumber = phoneNumber;
     }
+
+    // IAuthenticatable implementation
+    public string GetUsername() => Username;
+    public string GetEmail() => Email;
+    public string GetPasswordHash() => PasswordHash;
+    public bool GetIsActive() => Status == OperatorStatus.Active;
+    public UserType GetUserType() => UserType.Operator;
 }
