@@ -219,7 +219,7 @@ public sealed class RefreshToken : Entity
             ExpiresAt = expiresAt,
             CreatedByIp = ipAddress ?? "unknown",
             UserAgent = userAgent,
-            CreatedAt = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow
         };
     }
 

@@ -99,8 +99,8 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
             .HasMaxLength(500)
             .HasColumnType("NVARCHAR(500)");
 
-        // CreatedAt: From Entity base class
-        builder.Property(rt => rt.CreatedAt)
+        // CreatedAtUtc: From Entity base class
+        builder.Property(rt => rt.CreatedAtUtc)
             .IsRequired()
             .HasColumnType("DATETIME2");
 
