@@ -1,27 +1,35 @@
+using HRM.Web.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
-using HRM.Web.Models;
 
 namespace HRM.Web.Services;
 
 /// <summary>
 /// HTTP client for calling HRM.Api endpoints
-/// Handles API communication, error handling, and response mapping
+/// Handles serialization, error handling, and response mapping
 /// </summary>
+public interface IApiClient
+{
+    Task<ApiResponse<OperatorResponse>> RegisterOperatorAsync(
+        RegisterOperatorRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class ApiClient : IApiClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ApiClient> _logger;
 
-    public ApiClient(IHttpClientFactory httpClientFactory, ILogger<ApiClient> logger)
+    public ApiClient(
+        IHttpClientFactory httpClientFactory,
+        ILogger<ApiClient> logger)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
     /// <summary>
-    /// Register a new operator
-    /// POST /api/identity/operators/register
+    /// Register a new operator via HRM.Api
     /// </summary>
     public async Task<ApiResponse<OperatorResponse>> RegisterOperatorAsync(
         RegisterOperatorRequest request,
@@ -31,14 +39,12 @@ public sealed class ApiClient : IApiClient
         {
             var httpClient = _httpClientFactory.CreateClient("HRM.Api");
 
-            // Map to API contract (exclude ConfirmPassword)
+            // Map to API contract (remove ConfirmPassword)
             var apiRequest = new
             {
                 request.Username,
                 request.Email,
-                request.Password,
-                request.FullName,
-                request.PhoneNumber
+                request.Password
             };
 
             var response = await httpClient.PostAsJsonAsync(
@@ -52,109 +58,67 @@ public sealed class ApiClient : IApiClient
                 return new ApiResponse<OperatorResponse>
                 {
                     IsSuccess = true,
-                    Data = data,
-                    StatusCode = (int)response.StatusCode
+                    Data = data
                 };
             }
 
-            // Handle error response
+            // Handle error responses (400, 500, etc.)
             var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var problemDetails = JsonSerializer.Deserialize<ProblemDetails>(errorContent, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
 
-            return new ApiResponse<OperatorResponse>
+            // Try to parse ProblemDetails (RFC 7807)
+            try
             {
-                IsSuccess = false,
-                ErrorCode = problemDetails?.Code ?? "Unknown",
-                ErrorMessage = problemDetails?.Message ?? "An error occurred",
-                StatusCode = (int)response.StatusCode
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling RegisterOperator API");
-            return new ApiResponse<OperatorResponse>
-            {
-                IsSuccess = false,
-                ErrorCode = "NetworkError",
-                ErrorMessage = "Failed to connect to API. Please check if the API is running.",
-                StatusCode = 500
-            };
-        }
-    }
-
-    /// <summary>
-    /// Activate a pending operator
-    /// POST /api/identity/operators/{id}/activate
-    /// </summary>
-    public async Task<ApiResponse<OperatorResponse>> ActivateOperatorAsync(
-        Guid operatorId,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var httpClient = _httpClientFactory.CreateClient("HRM.Api");
-
-            var response = await httpClient.PostAsync(
-                $"/api/identity/operators/{operatorId}/activate",
-                null,
-                cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var data = await response.Content.ReadFromJsonAsync<OperatorResponse>(cancellationToken);
+                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent);
                 return new ApiResponse<OperatorResponse>
                 {
-                    IsSuccess = true,
-                    Data = data,
-                    StatusCode = (int)response.StatusCode
+                    IsSuccess = false,
+                    ErrorCode = problemDetails?.Type ?? "ApiError",
+                    ErrorMessage = problemDetails?.Detail ?? "An error occurred while processing your request",
+                    ValidationErrors = problemDetails?.Errors
                 };
             }
-
-            // Handle error response
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var problemDetails = JsonSerializer.Deserialize<ProblemDetails>(errorContent, new JsonSerializerOptions
+            catch
             {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return new ApiResponse<OperatorResponse>
-            {
-                IsSuccess = false,
-                ErrorCode = problemDetails?.Code ?? "Unknown",
-                ErrorMessage = problemDetails?.Message ?? "An error occurred",
-                StatusCode = (int)response.StatusCode
-            };
+                // Fallback if not ProblemDetails format
+                return new ApiResponse<OperatorResponse>
+                {
+                    IsSuccess = false,
+                    ErrorCode = "ApiError",
+                    ErrorMessage = $"Server returned {(int)response.StatusCode}: {errorContent}"
+                };
+            }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error calling ActivateOperator API");
+            _logger.LogError(ex, "Network error while calling HRM.Api");
             return new ApiResponse<OperatorResponse>
             {
                 IsSuccess = false,
                 ErrorCode = "NetworkError",
-                ErrorMessage = "Failed to connect to API. Please check if the API is running.",
-                StatusCode = 500
+                ErrorMessage = "Failed to connect to API server. Please try again later."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while calling HRM.Api");
+            return new ApiResponse<OperatorResponse>
+            {
+                IsSuccess = false,
+                ErrorCode = "UnexpectedError",
+                ErrorMessage = "An unexpected error occurred. Please contact support."
             };
         }
     }
 
     /// <summary>
-    /// Get all operators (future implementation)
+    /// Model for deserializing RFC 7807 Problem Details responses
     /// </summary>
-    public async Task<ApiResponse<List<OperatorResponse>>> GetOperatorsAsync(
-        CancellationToken cancellationToken = default)
+    private sealed class ProblemDetailsResponse
     {
-        // TODO: Implement when API endpoint is available
-        await Task.CompletedTask;
-        return new ApiResponse<List<OperatorResponse>>
-        {
-            IsSuccess = false,
-            ErrorCode = "NotImplemented",
-            ErrorMessage = "This feature is not yet implemented",
-            StatusCode = 501
-        };
+        public string? Type { get; set; }
+        public string? Title { get; set; }
+        public int Status { get; set; }
+        public string? Detail { get; set; }
+        public Dictionary<string, string[]>? Errors { get; set; }
     }
 }
