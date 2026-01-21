@@ -20,6 +20,12 @@ namespace HRM.Modules.Identity.Api.DependencyInjection;
 /// Endpoints Registered:
 /// - POST /api/identity/operators/register
 /// - POST /api/identity/operators/{id}/activate
+/// - POST /api/identity/auth/login
+/// - POST /api/identity/auth/logout
+/// - POST /api/identity/auth/refresh
+/// - GET /api/identity/auth/sessions
+/// - DELETE /api/identity/auth/sessions/{id}
+/// - POST /api/identity/auth/sessions/revoke-all-except-current
 ///
 /// Authorization:
 /// - All endpoints require authentication (Bearer JWT)
@@ -47,11 +53,13 @@ public static class IdentityApiExtensions
     /// <returns>Endpoint route builder for chaining</returns>
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder app)
     {
-        // Map operator endpoints
+        // Map operator management endpoints
         app.MapOperatorEndpoints();
 
+        // Map authentication endpoints (login, logout, refresh, sessions)
+        app.MapAuthenticationEndpoints();
+
         // Future: Map other endpoint groups
-        // app.MapAuthenticationEndpoints();
         // app.MapUserEndpoints();
 
         return app;
