@@ -93,6 +93,11 @@ public static class IdentityInfrastructureExtensions
             // options.EnableDetailedErrors();
         });
 
+        // Register IUnitOfWork - resolves to IdentityDbContext
+        // UnitOfWorkBehavior depends on IUnitOfWork for transaction management
+        services.AddScoped<HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork.IUnitOfWork>(
+            sp => sp.GetRequiredService<IdentityDbContext>());
+
         // 2. Register Repositories
         // Scoped: One instance per HTTP request
         services.AddScoped<IOperatorRepository, OperatorRepository>();
