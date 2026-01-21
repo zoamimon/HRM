@@ -3,7 +3,6 @@ using System.Text;
 using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
-using HRM.BuildingBlocks.Application.Behaviors;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
@@ -42,14 +41,15 @@ namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 /// What Gets Registered:
 /// - IEventBus → InMemoryEventBus (singleton)
 /// - ICurrentUserService → CurrentUserService (scoped)
-/// - AuditInterceptor (singleton)
+/// - IClaimsTransformation → RolesClaimsTransformation (scoped)
+/// - AuditInterceptor (scoped - depends on ICurrentUserService)
 /// - HttpContextAccessor (for CurrentUserService)
-/// - MediatR with pipeline behaviors:
-///   * LoggingBehavior (logs all requests/responses)
-///   * ValidationBehavior (validates commands/queries with FluentValidation)
-///   * UnitOfWorkBehavior (commits UnitOfWork after successful handling)
 ///
-/// Not Registered Here:
+/// NOT Registered Here (moved to Application layer):
+/// - MediatR (registered in BuildingBlocksApplication)
+/// - Pipeline behaviors (registered in BuildingBlocksApplication)
+///
+/// Not Registered Here (module-specific):
 /// - Module-specific DbContexts (registered per module)
 /// - OutboxProcessor (registered per module as hosted service)
 /// - Repositories (registered per module)
@@ -103,24 +103,6 @@ public static class InfrastructureServiceExtensions
         // EF Core Interceptors
         // NOTE: AuditInterceptor is Scoped because it depends on ICurrentUserService (Scoped)
         services.AddScoped<AuditInterceptor>();
-
-        // MediatR with Pipeline Behaviors
-        // Register from Application assembly where commands, queries, and behaviors are defined
-        services.AddMediatR(config =>
-        {
-            // Register all handlers from Application layer assembly
-            config.RegisterServicesFromAssembly(typeof(ValidationBehavior<,>).Assembly);
-
-            // Register pipeline behaviors (order matters - executes in registration order)
-            // 1. Logging: Log all requests/responses
-            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-
-            // 2. Validation: Validate commands/queries before handling
-            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-
-            // 3. Unit of Work: Commit changes after successful handling
-            config.AddOpenBehavior(typeof(UnitOfWorkBehavior<,>));
-        });
 
         return services;
     }

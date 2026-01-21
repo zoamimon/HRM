@@ -71,4 +71,11 @@ public sealed record RegisterOperatorCommand(
     string Password,
     string FullName,
     string? PhoneNumber = null
-) : ICommand<Guid>;
+) : IModuleCommand<Guid>
+{
+    /// <summary>
+    /// Module name for Unit of Work routing
+    /// Commands in Identity module always commit via IdentityDbContext
+    /// </summary>
+    public string ModuleName => "Identity";
+}

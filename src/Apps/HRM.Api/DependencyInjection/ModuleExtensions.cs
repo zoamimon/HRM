@@ -1,5 +1,7 @@
+using HRM.BuildingBlocks.Application.DependencyInjection;
 using HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 using HRM.Modules.Identity.Api.DependencyInjection;
+using HRM.Modules.Identity.Application.DependencyInjection;
 using HRM.Modules.Identity.Infrastructure.DependencyInjection;
 
 namespace HRM.Api.DependencyInjection;
@@ -14,10 +16,11 @@ namespace HRM.Api.DependencyInjection;
 /// - Personnel Module: Employee management (future)
 /// - Attendance Module: Time tracking (future)
 ///
-/// Module Registration Order:
-/// 1. BuildingBlocks Infrastructure (shared services)
-/// 2. Module-specific Infrastructure (DbContext, repositories, services)
-/// 3. Module-specific API (endpoints, contracts)
+/// Module Registration Order (CRITICAL - DO NOT CHANGE):
+/// 1. BuildingBlocks Application (MediatR + pipeline behaviors)
+/// 2. BuildingBlocks Infrastructure (technical services)
+/// 3. Module-specific Application (handlers + validators)
+/// 4. Module-specific Infrastructure (DbContext + UnitOfWork)
 ///
 /// Usage (Program.cs):
 /// <code>
@@ -40,24 +43,48 @@ public static class ModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 1. Register BuildingBlocks Infrastructure (shared services)
+        // ====================================================================
+        // REGISTRATION ORDER IS CRITICAL - DO NOT REORDER
+        // ====================================================================
+
+        // 1. BuildingBlocks Application Layer
+        // Register MediatR with pipeline behaviors (BEFORE any handlers)
+        // - LoggingBehavior (outermost - logs all requests)
+        // - ValidationBehavior (fails fast before transaction)
+        // - UnitOfWorkBehavior (wraps handler with transaction)
+        services.AddBuildingBlocksApplication();
+
+        // 2. BuildingBlocks Infrastructure Layer
+        // Register technical services (AFTER MediatR, BEFORE modules)
         // - Event Bus (InMemoryEventBus)
-        // - CurrentUserService
-        // - RolesClaimsTransformation
-        // - MediatR with pipeline behaviors (Logging, Validation, UnitOfWork)
-        // - EF Core interceptors (AuditInterceptor)
+        // - CurrentUserService (for ICurrentUserService)
+        // - RolesClaimsTransformation (JWT role normalization)
+        // - AuditInterceptor (Scoped - depends on ICurrentUserService)
         services.AddBuildingBlocksInfrastructure(configuration);
 
-        // 2. Register Identity Module Infrastructure
-        // - IdentityDbContext with SQL Server
-        // - Repositories (IOperatorRepository, IUserRepository)
+        // 3. Identity Module Application Layer
+        // Register module-specific handlers and validators
+        // - Command handlers (RegisterOperatorCommandHandler, etc.)
+        // - Query handlers (GetOperatorByIdQueryHandler, etc.)
+        // - Domain event handlers (OperatorRegisteredDomainEventHandler, etc.)
+        // - FluentValidation validators (RegisterOperatorCommandValidator, etc.)
+        services.AddIdentityApplication();
+
+        // 4. Identity Module Infrastructure Layer
+        // Register module-specific technical implementations
+        // - IdentityDbContext (SQL Server, schema: Identity)
+        // - IModuleUnitOfWork → IdentityDbContext (for UnitOfWorkBehavior)
+        // - Repositories (IOperatorRepository → OperatorRepository)
         // - Authentication services (IPasswordHasher, ITokenService)
-        // - MediatR handlers for Identity commands/queries
+        // - Background services (IdentityOutboxProcessor)
         services.AddIdentityInfrastructure(configuration);
 
-        // Future modules:
+        // Future modules (same pattern):
+        // services.AddPersonnelApplication();
         // services.AddPersonnelInfrastructure(configuration);
-        // services.AddAttendanceInfrastructure(configuration);
+        //
+        // services.AddPayrollApplication();
+        // services.AddPayrollInfrastructure(configuration);
 
         return services;
     }

@@ -1,4 +1,3 @@
-using FluentValidation;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Domain.Repositories;
 using HRM.Modules.Identity.Infrastructure.Authentication;
@@ -93,9 +92,10 @@ public static class IdentityInfrastructureExtensions
             // options.EnableDetailedErrors();
         });
 
-        // Register IUnitOfWork - resolves to IdentityDbContext
-        // UnitOfWorkBehavior depends on IUnitOfWork for transaction management
-        services.AddScoped<HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork.IUnitOfWork>(
+        // Register IModuleUnitOfWork - resolves to IdentityDbContext
+        // UnitOfWorkBehavior depends on IModuleUnitOfWork for transaction management
+        // ModuleName property returns "Identity" for routing
+        services.AddScoped<HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork.IModuleUnitOfWork>(
             sp => sp.GetRequiredService<IdentityDbContext>());
 
         // 2. Register Repositories
@@ -118,21 +118,6 @@ public static class IdentityInfrastructureExtensions
         // Singleton: Runs continuously in background
         // IHostedService: Starts automatically with application
         services.AddHostedService<IdentityOutboxProcessor>();
-
-        // 5. Register MediatR handlers from Application layer
-        // Discovers all ICommandHandler, IQueryHandler, INotificationHandler
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssembly(
-                typeof(Application.Commands.RegisterOperator.RegisterOperatorCommand).Assembly
-            );
-        });
-
-        // 6. Register FluentValidation validators from Application layer
-        // Discovers all AbstractValidator<T>
-        services.AddValidatorsFromAssembly(
-            typeof(Application.Commands.RegisterOperator.RegisterOperatorCommand).Assembly
-        );
 
         return services;
     }

@@ -8,11 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- BuildingBlocks Infrastructure for shared services -->
+    <!-- BuildingBlocks references -->
+    <ProjectReference Include="..\..\BuildingBlocks\HRM.BuildingBlocks.Application\HRM.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\HRM.BuildingBlocks.Infrastructure\HRM.BuildingBlocks.Infrastructure.csproj" />
 
     <!-- Module References -->
     <ProjectReference Include="..\..\Modules\Identity\HRM.Modules.Identity.Api\HRM.Modules.Identity.Api.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\HRM.Modules.Identity.Application\HRM.Modules.Identity.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Identity\HRM.Modules.Identity.Infrastructure\HRM.Modules.Identity.Infrastructure.csproj" />
   </ItemGroup>
 

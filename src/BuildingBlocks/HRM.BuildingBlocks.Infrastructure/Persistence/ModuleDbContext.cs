@@ -50,7 +50,7 @@ namespace HRM.BuildingBlocks.Infrastructure.Persistence;
 /// - Transaction rollback on any failure
 /// - Clean separation of domain and integration events
 /// </summary>
-public abstract class ModuleDbContext : DbContext, IUnitOfWork
+public abstract class ModuleDbContext : DbContext, IModuleUnitOfWork
 {
     private readonly IPublisher _publisher;
 
