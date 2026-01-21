@@ -29,7 +29,7 @@ namespace HRM.Modules.Identity.Infrastructure.DependencyInjection;
 /// - Background Services: Singleton (runs continuously)
 ///
 /// Configuration:
-/// - Connection string: appsettings.json -> ConnectionStrings:HrmDb
+/// - Connection string: appsettings.json -> ConnectionStrings:HrmDatabase
 /// - Same database as other modules (schema separation)
 /// - SQL Server provider (Microsoft.EntityFrameworkCore.SqlServer)
 ///
@@ -55,15 +55,15 @@ public static class IdentityInfrastructureExtensions
         IConfiguration configuration)
     {
         // 1. Register DbContext
-        // Connection string: "HrmDb" from appsettings.json
-        // Shared database with other modules (schema: Identity)
+        // Connection string: "HrmDatabase" from appsettings.json
+        // Shared database with other modules (schema separation)
         services.AddDbContext<IdentityDbContext>((serviceProvider, options) =>
         {
-            var connectionString = configuration.GetConnectionString("HrmDb")
+            var connectionString = configuration.GetConnectionString("HrmDatabase")
                 ?? throw new InvalidOperationException(
-                    "Connection string 'HrmDb' not found in configuration. " +
+                    "Connection string 'HrmDatabase' not found in configuration. " +
                     "Please add it to appsettings.json: " +
-                    "\"ConnectionStrings\": { \"HrmDb\": \"Server=...;Database=HrmDb;...\" }");
+                    "\"ConnectionStrings\": { \"HrmDatabase\": \"Server=...;Database=HrmDb;...\" }");
 
             options.UseSqlServer(connectionString, sqlOptions =>
             {
