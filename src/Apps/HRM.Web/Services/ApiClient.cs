@@ -39,12 +39,14 @@ public sealed class ApiClient : IApiClient
         {
             var httpClient = _httpClientFactory.CreateClient("HRM.Api");
 
-            // Map to API contract (remove ConfirmPassword)
+            // Map to API contract (remove ConfirmPassword, include FullName and PhoneNumber)
             var apiRequest = new
             {
                 request.Username,
                 request.Email,
-                request.Password
+                request.Password,
+                request.FullName,
+                request.PhoneNumber
             };
 
             var response = await httpClient.PostAsJsonAsync(
@@ -68,7 +70,12 @@ public sealed class ApiClient : IApiClient
             // Try to parse ProblemDetails (RFC 7807)
             try
             {
-                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent);
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
                 return new ApiResponse<OperatorResponse>
                 {
                     IsSuccess = false,
@@ -77,8 +84,10 @@ public sealed class ApiClient : IApiClient
                     ValidationErrors = problemDetails?.Errors
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to deserialize ProblemDetails. Raw response: {ErrorContent}", errorContent);
+
                 // Fallback if not ProblemDetails format
                 return new ApiResponse<OperatorResponse>
                 {
