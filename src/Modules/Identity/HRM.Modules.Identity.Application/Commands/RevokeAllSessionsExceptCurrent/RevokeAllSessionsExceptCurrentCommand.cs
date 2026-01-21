@@ -50,7 +50,7 @@ public sealed record RevokeAllSessionsExceptCurrentCommand(
     Guid OperatorId,
     string CurrentRefreshToken,
     string? IpAddress = null
-) : IModuleCommand<Result<RevokeAllSessionsResult>>
+) : IModuleCommand<RevokeAllSessionsResult>
 {
     /// <summary>
     /// Module name for Unit of Work routing

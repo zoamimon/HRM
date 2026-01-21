@@ -65,7 +65,7 @@ public sealed record RefreshTokenCommand(
     string RefreshToken,
     string? IpAddress = null,
     string? UserAgent = null
-) : IModuleCommand<Result<LoginResponse>>
+) : IModuleCommand<LoginResponse>
 {
     /// <summary>
     /// Module name for Unit of Work routing

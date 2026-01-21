@@ -82,7 +82,7 @@ public sealed record LoginCommand(
     bool RememberMe = false,
     string? IpAddress = null,
     string? UserAgent = null
-) : IModuleCommand<Result<LoginResponse>>
+) : IModuleCommand<LoginResponse>
 {
     /// <summary>
     /// Module name for Unit of Work routing
