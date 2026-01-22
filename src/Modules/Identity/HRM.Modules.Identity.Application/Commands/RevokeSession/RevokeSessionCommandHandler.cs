@@ -1,9 +1,7 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
 using HRM.Modules.Identity.Application.Errors;
-using HRM.Modules.Identity.Domain.Entities;
+using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRM.Modules.Identity.Application.Commands.RevokeSession;
 
@@ -12,7 +10,7 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeSession;
 /// Revokes specific session (logout from specific device)
 ///
 /// Dependencies:
-/// - IModuleUnitOfWork: Access RefreshTokens and commit
+/// - IRefreshTokenRepository: Access RefreshTokens and commit
 ///
 /// Security Logic:
 /// 1. Find session by ID
@@ -32,11 +30,11 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeSession;
 public sealed class RevokeSessionCommandHandler
     : IRequestHandler<RevokeSessionCommand, Result>
 {
-    private readonly IModuleUnitOfWork _unitOfWork;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public RevokeSessionCommandHandler(IModuleUnitOfWork unitOfWork)
+    public RevokeSessionCommandHandler(IRefreshTokenRepository refreshTokenRepository)
     {
-        _unitOfWork = unitOfWork;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result> Handle(
@@ -44,10 +42,9 @@ public sealed class RevokeSessionCommandHandler
         CancellationToken cancellationToken)
     {
         // Find session by ID
-        var session = await _unitOfWork.Set<RefreshToken>()
-            .SingleOrDefaultAsync(
-                rt => rt.Id == request.SessionId,
-                cancellationToken);
+        var session = await _refreshTokenRepository.GetByIdAsync(
+            request.SessionId,
+            cancellationToken);
 
         // If not found, return not found error
         if (session is null)

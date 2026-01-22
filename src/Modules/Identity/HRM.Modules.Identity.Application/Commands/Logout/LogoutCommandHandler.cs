@@ -1,8 +1,6 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
-using HRM.Modules.Identity.Domain.Entities;
+using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRM.Modules.Identity.Application.Commands.Logout;
 
@@ -11,7 +9,7 @@ namespace HRM.Modules.Identity.Application.Commands.Logout;
 /// Revokes refresh token to terminate session
 ///
 /// Dependencies:
-/// - IModuleUnitOfWork: Access RefreshTokens DbSet and commit changes
+/// - IRefreshTokenRepository: Access RefreshTokens and commit changes
 ///
 /// Business Logic:
 /// 1. Find refresh token in database
@@ -35,11 +33,11 @@ namespace HRM.Modules.Identity.Application.Commands.Logout;
 /// </summary>
 public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
 {
-    private readonly IModuleUnitOfWork _unitOfWork;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public LogoutCommandHandler(IModuleUnitOfWork unitOfWork)
+    public LogoutCommandHandler(IRefreshTokenRepository refreshTokenRepository)
     {
-        _unitOfWork = unitOfWork;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result> Handle(
@@ -47,10 +45,9 @@ public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result
         CancellationToken cancellationToken)
     {
         // Find refresh token
-        var refreshToken = await _unitOfWork.Set<RefreshToken>()
-            .SingleOrDefaultAsync(
-                rt => rt.Token == request.RefreshToken,
-                cancellationToken);
+        var refreshToken = await _refreshTokenRepository.GetByTokenAsync(
+            request.RefreshToken,
+            cancellationToken);
 
         // If not found or already revoked → success (idempotent)
         if (refreshToken == null || refreshToken.RevokedAt.HasValue)
