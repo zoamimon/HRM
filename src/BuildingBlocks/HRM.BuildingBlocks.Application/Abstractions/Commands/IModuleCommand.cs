@@ -37,17 +37,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Commands;
 /// - Refactoring-safe
 /// </summary>
 /// <typeparam name="TResponse">The type of data returned on success</typeparam>
-public interface IModuleCommand<TResponse> : ICommand<TResponse>
+public interface IModuleCommand<TResponse> : ICommand<TResponse>, IHasModuleName
 {
-    /// <summary>
-    /// Module name that owns this command
-    /// Must match IModuleUnitOfWork.ModuleName
-    /// 
-    /// Examples:
-    /// - "Identity"
-    /// - "Personnel"
-    /// - "Payroll"
-    /// - "Organization"
-    /// </summary>
-    string ModuleName { get; }
+    // ModuleName property inherited from IHasModuleName
 }

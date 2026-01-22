@@ -18,9 +18,9 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 /// - Commits AFTER handler completes successfully
 ///
 /// Module Resolution:
-/// - Command implements IModuleCommand with ModuleName property
-/// - Behavior resolves IModuleUnitOfWork matching that module
-/// - Type-safe, no string magic
+/// - Command implements IModuleCommand (which inherits IHasModuleName)
+/// - Behavior uses pattern matching: request is IHasModuleName
+/// - Type-safe, no reflection, better performance
 ///
 /// Transaction Flow:
 /// 1. Handler executes (loads aggregates, applies business rules)
@@ -42,7 +42,7 @@ namespace HRM.BuildingBlocks.Application.Behaviors;
 /// - IModuleCommand<T> means IRequest<Result<T>> in MediatR pipeline
 /// - Constraint changed from "TRequest : IModuleCommand<TResponse>" to ICommandBase
 ///   because TResponse in pipeline is Result<T>, but IModuleCommand<T> expects unwrapped T
-/// - Runtime check ensures only IModuleCommand instances trigger UnitOfWork
+/// - Type guard "request is IHasModuleName" ensures only module commands trigger UnitOfWork
 ///
 /// Example:
 /// <code>
@@ -77,21 +77,21 @@ public sealed class UnitOfWorkBehavior<TRequest, TResponse> : IPipelineBehavior<
         // Execute handler first
         var response = await next();
 
-        // Check if request has ModuleName property (IModuleCommand interface)
-        // Use reflection to get ModuleName property dynamically
-        var moduleNameProperty = request.GetType().GetProperty("ModuleName");
-        if (moduleNameProperty is null)
+        // Type-safe guard: Check if request implements IHasModuleName (module command)
+        // Uses pattern matching instead of reflection for better performance and type safety
+        if (request is not IHasModuleName moduleCommand)
         {
             // Not a module command, skip UnitOfWork commit
             // This handles ICommand (non-module commands) gracefully
             return response;
         }
 
-        var moduleName = moduleNameProperty.GetValue(request) as string;
+        // Validate ModuleName is not null or empty
+        var moduleName = moduleCommand.ModuleName;
         if (string.IsNullOrEmpty(moduleName))
         {
             throw new InvalidOperationException(
-                $"Command {request.GetType().Name} has ModuleName property but it's null or empty. " +
+                $"Command {request.GetType().Name} implements IHasModuleName but ModuleName is null or empty. " +
                 $"IModuleCommand implementations must return a non-empty ModuleName.");
         }
 
