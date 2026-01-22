@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
@@ -46,8 +47,9 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         CancellationToken cancellationToken)
     {
         // 1. Verify current token exists and belongs to operator
-        var currentToken = await _refreshTokenRepository.GetByTokenAndOperatorAsync(
+        var currentToken = await _refreshTokenRepository.GetByTokenAndPrincipalAsync(
             request.CurrentRefreshToken,
+            UserType.Operator,      // Polymorphic design: specify user type
             request.OperatorId,
             cancellationToken);
 
@@ -59,6 +61,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
 
         // 2. Find all active sessions for operator (except current)
         var sessionsToRevoke = await _refreshTokenRepository.GetActiveSessionsExceptAsync(
+            UserType.Operator,      // Polymorphic design: specify user type
             request.OperatorId,
             currentToken.Id,
             cancellationToken);

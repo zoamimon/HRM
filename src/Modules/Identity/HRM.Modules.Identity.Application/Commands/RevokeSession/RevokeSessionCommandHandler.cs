@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Application.Errors;
 using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
@@ -52,8 +53,8 @@ public sealed class RevokeSessionCommandHandler
             return Result.Failure(SessionErrors.NotFound());
         }
 
-        // Security: Verify session belongs to current operator
-        if (session.OperatorId != request.OperatorId)
+        // Security: Verify session belongs to current operator (polymorphic design)
+        if (session.UserType != UserType.Operator || session.PrincipalId != request.OperatorId)
         {
             return Result.Failure(SessionErrors.UnauthorizedAccess());
         }

@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Application.Errors;
@@ -128,7 +129,8 @@ public sealed class LoginCommandHandler
 
         // 8. Store refresh token in database
         var refreshTokenEntity = Domain.Entities.RefreshToken.Create(
-            @operator.Id,
+            UserType.Operator,      // Polymorphic design: specify user type
+            @operator.Id,           // Operator ID becomes PrincipalId
             refreshToken,
             refreshTokenExpiry,
             request.IpAddress,

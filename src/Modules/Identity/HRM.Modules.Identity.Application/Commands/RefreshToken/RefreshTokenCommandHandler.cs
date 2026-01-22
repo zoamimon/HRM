@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Commands.Login;
 using HRM.Modules.Identity.Application.Configuration;
@@ -16,6 +17,7 @@ namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
 ///
 /// Dependencies:
 /// - IRefreshTokenRepository: Access RefreshTokens and commit
+/// - IOperatorRepository: Fetch operator data (polymorphic design)
 /// - ITokenService: Generate new tokens
 /// - JwtOptions: Get token expiry configuration
 ///
@@ -25,6 +27,11 @@ namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
 /// - Access token → Always generate fresh
 /// - Creates audit chain for security
 ///
+/// Polymorphic Design:
+/// - RefreshToken no longer has Operator navigation property
+/// - Must fetch operator separately using PrincipalId
+/// - Supports future extensibility (Employee, Customer, etc.)
+///
 /// Security Features:
 /// - Detects token reuse (revoked token used again)
 /// - Limits token lifetime
@@ -32,12 +39,13 @@ namespace HRM.Modules.Identity.Application.Commands.RefreshToken;
 /// - IP and UserAgent tracking
 ///
 /// Performance:
-/// - Single query with Include (operator data)
+/// - Two queries: token + operator (can't use Include with polymorphic)
 /// - Fast token generation (~1-3ms)
 /// - Single transaction commit
 ///
 /// Error Handling:
 /// - Invalid/expired/revoked token → 401 Unauthorized
+/// - Operator not found → 401 Unauthorized
 /// - Operator not active → 403 Forbidden
 /// - Database errors → Propagated
 /// </summary>
@@ -45,15 +53,18 @@ public sealed class RefreshTokenCommandHandler
     : IRequestHandler<RefreshTokenCommand, Result<LoginResponse>>
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IOperatorRepository _operatorRepository;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
 
     public RefreshTokenCommandHandler(
         IRefreshTokenRepository refreshTokenRepository,
+        IOperatorRepository operatorRepository,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions)
     {
         _refreshTokenRepository = refreshTokenRepository;
+        _operatorRepository = operatorRepository;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
     }
@@ -62,7 +73,7 @@ public sealed class RefreshTokenCommandHandler
         RefreshTokenCommand request,
         CancellationToken cancellationToken)
     {
-        // 1. Find and validate refresh token (with Operator data)
+        // 1. Find and validate refresh token
         var existingToken = await _refreshTokenRepository.GetByTokenAsync(
             request.RefreshToken,
             cancellationToken);
@@ -86,8 +97,25 @@ public sealed class RefreshTokenCommandHandler
                 AuthenticationErrors.RefreshTokenExpired());
         }
 
-        // 3. Get operator and validate status
-        var @operator = existingToken.Operator;
+        // 3. Verify token is for Operator (polymorphic design)
+        if (existingToken.UserType != UserType.Operator)
+        {
+            return Result.Failure<LoginResponse>(
+                AuthenticationErrors.InvalidRefreshToken());
+        }
+
+        // 4. Fetch operator separately (no navigation property in polymorphic design)
+        var @operator = await _operatorRepository.GetByIdAsync(
+            existingToken.PrincipalId,
+            cancellationToken);
+
+        if (@operator is null)
+        {
+            return Result.Failure<LoginResponse>(
+                AuthenticationErrors.InvalidRefreshToken());
+        }
+
+        // 5. Validate operator status
 
         if (@operator.Status != OperatorStatus.Active)
         {
@@ -101,27 +129,28 @@ public sealed class RefreshTokenCommandHandler
                 AuthenticationErrors.AccountNotActive());
         }
 
-        // 4. Check if account is locked
+        // 6. Check if account is locked
         if (@operator.LockedUntilUtc.HasValue && @operator.LockedUntilUtc.Value > DateTime.UtcNow)
         {
             return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
         }
 
-        // 5. Generate new access token
+        // 7. Generate new access token
         var accessTokenResult = _tokenService.GenerateAccessToken(@operator);
 
-        // 6. Generate new refresh token (inherit same expiry duration)
+        // 8. Generate new refresh token (inherit same expiry duration)
         var originalExpiryDuration = existingToken.ExpiresAt - existingToken.CreatedAtUtc;
         var newRefreshTokenExpiry = DateTime.UtcNow.Add(originalExpiryDuration);
         var newRefreshToken = _tokenService.GenerateRefreshToken(newRefreshTokenExpiry);
 
-        // 7. Revoke old token (token rotation)
+        // 9. Revoke old token (token rotation)
         existingToken.Revoke(request.IpAddress, newRefreshToken);
 
-        // 8. Store new refresh token
+        // 10. Store new refresh token with polymorphic design
         var newRefreshTokenEntity = Domain.Entities.RefreshToken.Create(
-            @operator.Id,
+            UserType.Operator,      // Polymorphic design: specify user type
+            @operator.Id,           // Operator ID becomes PrincipalId
             newRefreshToken,
             newRefreshTokenExpiry,
             request.IpAddress,
@@ -131,7 +160,7 @@ public sealed class RefreshTokenCommandHandler
         _refreshTokenRepository.Add(newRefreshTokenEntity);
         // UnitOfWorkBehavior will commit
 
-        // 9. Build and return response
+        // 11. Build and return response
         var response = new LoginResponse
         {
             AccessToken = accessTokenResult.Token,
