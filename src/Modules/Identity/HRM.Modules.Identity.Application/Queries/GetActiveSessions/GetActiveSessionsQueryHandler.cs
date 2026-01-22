@@ -1,8 +1,6 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork;
-using HRM.Modules.Identity.Domain.Entities;
+using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRM.Modules.Identity.Application.Queries.GetActiveSessions;
 
@@ -11,7 +9,7 @@ namespace HRM.Modules.Identity.Application.Queries.GetActiveSessions;
 /// Returns list of active sessions for operator
 ///
 /// Dependencies:
-/// - IModuleUnitOfWork: Access RefreshTokens DbSet
+/// - IRefreshTokenRepository: Access RefreshTokens
 ///
 /// Query Logic:
 /// 1. Find all refresh tokens for operator
@@ -34,35 +32,33 @@ namespace HRM.Modules.Identity.Application.Queries.GetActiveSessions;
 public sealed class GetActiveSessionsQueryHandler
     : IRequestHandler<GetActiveSessionsQuery, Result<List<SessionInfo>>>
 {
-    private readonly IModuleUnitOfWork _unitOfWork;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public GetActiveSessionsQueryHandler(IModuleUnitOfWork unitOfWork)
+    public GetActiveSessionsQueryHandler(IRefreshTokenRepository refreshTokenRepository)
     {
-        _unitOfWork = unitOfWork;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result<List<SessionInfo>>> Handle(
         GetActiveSessionsQuery request,
         CancellationToken cancellationToken)
     {
-        // Query active sessions
-        var activeSessions = await _unitOfWork.Set<RefreshToken>()
-            .Where(rt =>
-                rt.OperatorId == request.OperatorId &&
-                rt.RevokedAt == null &&
-                rt.ExpiresAt > DateTime.UtcNow)
-            .OrderByDescending(rt => rt.CreatedAtUtc)
-            .Select(rt => new SessionInfo
-            {
-                Id = rt.Id,
-                CreatedAt = rt.CreatedAtUtc,
-                ExpiresAt = rt.ExpiresAt,
-                UserAgent = rt.UserAgent,
-                CreatedByIp = rt.CreatedByIp,
-                IsCurrent = rt.Token == request.CurrentRefreshToken
-            })
-            .ToListAsync(cancellationToken);
+        // Query active sessions from repository
+        var activeTokens = await _refreshTokenRepository.GetActiveSessionsByOperatorIdAsync(
+            request.OperatorId,
+            cancellationToken);
 
-        return Result<List<SessionInfo>>.Success(activeSessions);
+        // Project to SessionInfo DTOs
+        var activeSessions = activeTokens.Select(rt => new SessionInfo
+        {
+            Id = rt.Id,
+            CreatedAt = rt.CreatedAtUtc,
+            ExpiresAt = rt.ExpiresAt,
+            UserAgent = rt.UserAgent,
+            CreatedByIp = rt.CreatedByIp,
+            IsCurrent = rt.Token == request.CurrentRefreshToken
+        }).ToList();
+
+        return Result.Success(activeSessions);
     }
 }

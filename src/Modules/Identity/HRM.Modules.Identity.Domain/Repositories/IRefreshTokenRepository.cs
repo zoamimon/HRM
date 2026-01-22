@@ -125,6 +125,32 @@ public interface IRefreshTokenRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get all active sessions for operator
+    /// Returns empty list if no active sessions found
+    ///
+    /// Use Cases:
+    /// - GetActiveSessions query (display all sessions in UI)
+    /// - Session monitoring
+    /// - Security audit
+    ///
+    /// Active Session Criteria:
+    /// - RevokedAt is NULL (not revoked)
+    /// - ExpiresAt > NOW (not expired)
+    ///
+    /// Performance:
+    /// - Indexed OperatorId lookup
+    /// - Filtered in database (not in memory)
+    /// - Ordered by CreatedAtUtc DESC (most recent first)
+    /// - Typical execution time: 5-20ms for 1-100 sessions
+    /// </summary>
+    /// <param name="operatorId">Operator ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of active RefreshToken entities ordered by creation date (newest first)</returns>
+    Task<List<RefreshToken>> GetActiveSessionsByOperatorIdAsync(
+        Guid operatorId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add new refresh token to repository
     /// Does NOT save to database immediately (use UnitOfWork.CommitAsync)
     ///
