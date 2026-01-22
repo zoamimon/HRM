@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Entities;
 
 namespace HRM.Modules.Identity.Domain.Repositories;
@@ -59,7 +60,7 @@ public interface IRefreshTokenRepository
     Task<RefreshToken?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get refresh token by token string (with Operator navigation loaded)
+    /// Get refresh token by token string
     /// Returns null if not found
     ///
     /// Use Cases:
@@ -68,17 +69,16 @@ public interface IRefreshTokenRepository
     ///
     /// Performance:
     /// - Indexed column (see RefreshTokenConfiguration)
-    /// - Includes Operator navigation for efficient access
     /// - Typical execution time: 2-10ms
     /// </summary>
     /// <param name="token">Token string</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>RefreshToken entity with Operator navigation or null if not found</returns>
+    /// <returns>RefreshToken entity or null if not found</returns>
     Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get refresh token by token string and operator ID
-    /// Returns null if not found or doesn't belong to operator
+    /// Get refresh token by token string and principal (user type + ID)
+    /// Returns null if not found or doesn't belong to principal
     ///
     /// Use Cases:
     /// - RevokeAllSessionsExceptCurrent command (verify current token ownership)
@@ -89,16 +89,18 @@ public interface IRefreshTokenRepository
     /// - Indexed token lookup
     /// </summary>
     /// <param name="token">Token string</param>
-    /// <param name="operatorId">Operator ID</param>
+    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="principalId">Principal ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>RefreshToken entity or null if not found</returns>
-    Task<RefreshToken?> GetByTokenAndOperatorAsync(
+    Task<RefreshToken?> GetByTokenAndPrincipalAsync(
         string token,
-        Guid operatorId,
+        UserType userType,
+        Guid principalId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all active sessions for operator (except specified token)
+    /// Get all active sessions for a principal (except specified token)
     /// Returns empty list if no active sessions found
     ///
     /// Use Cases:
@@ -111,21 +113,23 @@ public interface IRefreshTokenRepository
     /// - Excludes token with specified ID
     ///
     /// Performance:
-    /// - Indexed OperatorId lookup
+    /// - Indexed (UserType, PrincipalId) lookup
     /// - Filtered in database (not in memory)
     /// - Typical execution time: 5-20ms for 1-100 sessions
     /// </summary>
-    /// <param name="operatorId">Operator ID</param>
+    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="principalId">Principal ID</param>
     /// <param name="exceptTokenId">Token ID to exclude (current session)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of active RefreshToken entities</returns>
     Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
-        Guid operatorId,
+        UserType userType,
+        Guid principalId,
         Guid exceptTokenId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all active sessions for operator
+    /// Get all active sessions for a principal
     /// Returns empty list if no active sessions found
     ///
     /// Use Cases:
@@ -138,16 +142,18 @@ public interface IRefreshTokenRepository
     /// - ExpiresAt > NOW (not expired)
     ///
     /// Performance:
-    /// - Indexed OperatorId lookup
+    /// - Indexed (UserType, PrincipalId) lookup
     /// - Filtered in database (not in memory)
     /// - Ordered by CreatedAtUtc DESC (most recent first)
     /// - Typical execution time: 5-20ms for 1-100 sessions
     /// </summary>
-    /// <param name="operatorId">Operator ID</param>
+    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="principalId">Principal ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of active RefreshToken entities ordered by creation date (newest first)</returns>
-    Task<List<RefreshToken>> GetActiveSessionsByOperatorIdAsync(
-        Guid operatorId,
+    Task<List<RefreshToken>> GetActiveSessionsAsync(
+        UserType userType,
+        Guid principalId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

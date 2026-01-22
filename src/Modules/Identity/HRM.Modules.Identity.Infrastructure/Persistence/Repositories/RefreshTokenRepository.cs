@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -8,14 +9,20 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence.Repositories;
 /// Repository implementation for RefreshToken entity
 /// Provides data access methods for session and token management using EF Core
 ///
+/// Polymorphic Design:
+/// - Supports multiple user types (Operator, Employee, etc.)
+/// - Uses UserType + PrincipalId for discriminated queries
+/// - Single table serves all user types
+///
 /// Design Patterns:
 /// - Repository Pattern: Encapsulates data access logic
 /// - Unit of Work: DbContext tracks changes, CommitAsync commits
-/// - Eager Loading: Includes Operator navigation when needed
+/// - Polymorphic Association: Single table with type discriminator
 ///
 /// Performance Optimizations:
 /// - AsNoTracking for read-only queries (when appropriate)
-/// - Indexed columns for Token queries (see RefreshTokenConfiguration)
+/// - Composite index on (UserType, PrincipalId, ExpiresAt)
+/// - Indexed Token column for fast lookups
 /// - Efficient filtering in database (not in memory)
 ///
 /// Transaction Management:
@@ -48,25 +55,23 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     }
 
     /// <summary>
-    /// Get refresh token by token string (with Operator navigation)
+    /// Get refresh token by token string
     /// Returns null if not found
     ///
     /// Performance:
     /// - Uses unique index IX_RefreshTokens_Token
-    /// - Includes Operator in single query (no N+1 problem)
-    /// - Query plan: Index Seek + Nested Loop Join
+    /// - Query plan: Index Seek
     /// - Typical execution time: 2-10ms
     /// </summary>
     public async Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
     {
         return await _context.RefreshTokens
-            .Include(rt => rt.Operator)
             .FirstOrDefaultAsync(rt => rt.Token == token, cancellationToken);
     }
 
     /// <summary>
-    /// Get refresh token by token string and operator ID
-    /// Returns null if not found or doesn't belong to operator
+    /// Get refresh token by token string and principal (user type + ID)
+    /// Returns null if not found or doesn't belong to principal
     ///
     /// Security:
     /// - Validates token ownership before returning
@@ -74,23 +79,26 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     ///
     /// Performance:
     /// - Uses indexed Token column
-    /// - Additional OperatorId check (indexed FK)
+    /// - Additional UserType + PrincipalId check (composite index)
     /// - Typical execution time: 2-5ms
     /// </summary>
-    public async Task<RefreshToken?> GetByTokenAndOperatorAsync(
+    public async Task<RefreshToken?> GetByTokenAndPrincipalAsync(
         string token,
-        Guid operatorId,
+        UserType userType,
+        Guid principalId,
         CancellationToken cancellationToken = default)
     {
         return await _context.RefreshTokens
             .FirstOrDefaultAsync(
-                rt => rt.Token == token && rt.OperatorId == operatorId,
+                rt => rt.Token == token &&
+                      rt.UserType == userType &&
+                      rt.PrincipalId == principalId,
                 cancellationToken
             );
     }
 
     /// <summary>
-    /// Get all active sessions for operator (except specified token)
+    /// Get all active sessions for a principal (except specified token)
     /// Returns empty list if no active sessions found
     ///
     /// Active Session Criteria:
@@ -99,7 +107,7 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// - Excludes token with specified ID
     ///
     /// Performance:
-    /// - Uses indexed OperatorId (FK index)
+    /// - Uses composite index IX_RefreshTokens_Principal_Active
     /// - Filtered in SQL (WHERE clause)
     /// - Returns only necessary data
     /// - Typical execution time: 5-20ms for 1-100 sessions
@@ -107,20 +115,23 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// SQL Generated:
     /// <code>
     /// SELECT * FROM RefreshTokens
-    /// WHERE OperatorId = @operatorId
+    /// WHERE UserType = @userType
+    ///   AND PrincipalId = @principalId
     ///   AND Id != @exceptTokenId
     ///   AND RevokedAt IS NULL
     ///   AND ExpiresAt > GETUTCDATE()
     /// </code>
     /// </summary>
     public async Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
-        Guid operatorId,
+        UserType userType,
+        Guid principalId,
         Guid exceptTokenId,
         CancellationToken cancellationToken = default)
     {
         return await _context.RefreshTokens
             .Where(rt =>
-                rt.OperatorId == operatorId &&
+                rt.UserType == userType &&
+                rt.PrincipalId == principalId &&
                 rt.Id != exceptTokenId &&
                 rt.RevokedAt == null &&
                 rt.ExpiresAt > DateTime.UtcNow)
@@ -128,7 +139,7 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     }
 
     /// <summary>
-    /// Get all active sessions for operator
+    /// Get all active sessions for a principal
     /// Returns empty list if no active sessions found
     ///
     /// Active Session Criteria:
@@ -136,7 +147,7 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// - ExpiresAt > NOW (not expired)
     ///
     /// Performance:
-    /// - Uses indexed OperatorId (FK index)
+    /// - Uses composite index IX_RefreshTokens_Principal_Active
     /// - Filtered in SQL (WHERE clause)
     /// - Ordered by CreatedAtUtc DESC (most recent first)
     /// - Typical execution time: 5-20ms for 1-100 sessions
@@ -144,19 +155,22 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// SQL Generated:
     /// <code>
     /// SELECT * FROM RefreshTokens
-    /// WHERE OperatorId = @operatorId
+    /// WHERE UserType = @userType
+    ///   AND PrincipalId = @principalId
     ///   AND RevokedAt IS NULL
     ///   AND ExpiresAt > GETUTCDATE()
     /// ORDER BY CreatedAtUtc DESC
     /// </code>
     /// </summary>
-    public async Task<List<RefreshToken>> GetActiveSessionsByOperatorIdAsync(
-        Guid operatorId,
+    public async Task<List<RefreshToken>> GetActiveSessionsAsync(
+        UserType userType,
+        Guid principalId,
         CancellationToken cancellationToken = default)
     {
         return await _context.RefreshTokens
             .Where(rt =>
-                rt.OperatorId == operatorId &&
+                rt.UserType == userType &&
+                rt.PrincipalId == principalId &&
                 rt.RevokedAt == null &&
                 rt.ExpiresAt > DateTime.UtcNow)
             .OrderByDescending(rt => rt.CreatedAtUtc)

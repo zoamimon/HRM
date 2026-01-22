@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Domain.Entities;
+using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.Modules.Identity.Domain.Entities;
 
@@ -11,6 +12,13 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - Support multi-device sessions
 /// - Track session information (IP, user agent, device)
 /// - Implement token rotation for security
+/// - **Support multiple user types (Operator, Employee) via polymorphic design**
+///
+/// Polymorphic Design:
+/// - Uses UserType + PrincipalId instead of specific foreign keys
+/// - Single table serves multiple user types (Operator, Employee, etc.)
+/// - Enables unified session management across all user types
+/// - Simplifies queries and reduces code duplication
 ///
 /// Token Lifecycle:
 /// 1. Created: When user logs in
@@ -27,26 +35,49 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - IP tracking: Security audit trail
 ///
 /// Business Rules:
-/// - One operator can have multiple active refresh tokens (multi-device)
+/// - One user (any type) can have multiple active refresh tokens (multi-device)
 /// - Expired tokens cannot be used (checked via IsActive)
 /// - Revoked tokens cannot be reactivated
 /// - Token rotation creates audit trail (ReplacedByToken)
 ///
 /// Related Entities:
-/// - Operator: One-to-Many relationship
+/// - Operator: One-to-Many relationship (polymorphic via UserType.Operator)
+/// - Employee: One-to-Many relationship (polymorphic via UserType.Employee)
 ///
 /// Database:
 /// - Table: Identity.RefreshTokens
-/// - Indexes: Token (unique), OperatorId, ExpiresAt
+/// - Indexes: Token (unique), (UserType, PrincipalId), ExpiresAt
 /// - Soft delete: No (hard delete after expiration + grace period)
 /// </summary>
 public sealed class RefreshToken : Entity
 {
     /// <summary>
-    /// Operator ID that owns this refresh token
-    /// Foreign key to Operators table
+    /// Type of user that owns this refresh token (Operator, Employee, etc.)
+    /// Used as discriminator for polymorphic association
+    ///
+    /// Database:
+    /// - Stored as TINYINT (1 byte)
+    /// - Part of composite index: (UserType, PrincipalId)
+    ///
+    /// Usage:
+    /// - Filter queries by user type
+    /// - Determine which table PrincipalId references
+    /// - JWT claims for authorization
     /// </summary>
-    public Guid OperatorId { get; private set; }
+    public UserType UserType { get; private set; }
+
+    /// <summary>
+    /// ID of the user (Operator, Employee, etc.) that owns this refresh token
+    /// Polymorphic foreign key - references different tables based on UserType
+    ///
+    /// References:
+    /// - UserType.Operator → [Identity].Operators.Id
+    /// - UserType.Employee → [Personnel].Employees.Id
+    ///
+    /// Note: Database cannot enforce FK constraint (polymorphic limitation)
+    /// Application must validate principal exists before creating token
+    /// </summary>
+    public Guid PrincipalId { get; private set; }
 
     /// <summary>
     /// The refresh token value (random secure string)
@@ -148,12 +179,6 @@ public sealed class RefreshToken : Entity
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
 
     /// <summary>
-    /// Navigation property to Operator
-    /// Loaded via explicit Include() when needed
-    /// </summary>
-    public Operator Operator { get; private set; } = null!;
-
-    /// <summary>
     /// Private constructor for EF Core
     /// </summary>
     private RefreshToken()
@@ -161,7 +186,7 @@ public sealed class RefreshToken : Entity
     }
 
     /// <summary>
-    /// Create new refresh token for operator
+    /// Create new refresh token for any user type (Operator, Employee, etc.)
     ///
     /// Factory Method Pattern:
     /// - Ensures all required fields are provided
@@ -169,36 +194,55 @@ public sealed class RefreshToken : Entity
     /// - Sets default values
     /// - Cannot create invalid token
     ///
+    /// Polymorphic Design:
+    /// - Accepts UserType + PrincipalId instead of specific entity ID
+    /// - Works for Operators, Employees, and future user types
+    /// - Application must validate principal exists before calling
+    ///
     /// Usage:
     /// <code>
+    /// // For Operator
     /// var token = RefreshToken.Create(
-    ///     operatorId: operator.Id,
+    ///     userType: UserType.Operator,
+    ///     principalId: operator.Id,
     ///     token: _tokenService.GenerateRefreshToken(),
     ///     expiresAt: DateTime.UtcNow.AddDays(7),
-    ///     ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
-    ///     userAgent: httpContext.Request.Headers.UserAgent.ToString()
+    ///     ipAddress: clientInfo.IpAddress,
+    ///     userAgent: clientInfo.UserAgent
+    /// );
+    ///
+    /// // For Employee
+    /// var token = RefreshToken.Create(
+    ///     userType: UserType.Employee,
+    ///     principalId: employee.Id,
+    ///     token: _tokenService.GenerateRefreshToken(),
+    ///     expiresAt: DateTime.UtcNow.AddDays(7),
+    ///     ipAddress: clientInfo.IpAddress,
+    ///     userAgent: clientInfo.UserAgent
     /// );
     ///
     /// await _dbContext.RefreshTokens.AddAsync(token);
     /// await _dbContext.SaveChangesAsync();
     /// </code>
     /// </summary>
-    /// <param name="operatorId">Operator who owns this token</param>
+    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="principalId">ID of the user who owns this token</param>
     /// <param name="token">Random secure token string</param>
     /// <param name="expiresAt">Expiration date/time (UTC)</param>
     /// <param name="ipAddress">IP address of the client</param>
     /// <param name="userAgent">User agent string (browser/device)</param>
     /// <returns>New RefreshToken instance</returns>
     public static RefreshToken Create(
-        Guid operatorId,
+        UserType userType,
+        Guid principalId,
         string token,
         DateTime expiresAt,
         string? ipAddress,
         string? userAgent)
     {
-        if (operatorId == Guid.Empty)
+        if (principalId == Guid.Empty)
         {
-            throw new ArgumentException("Operator ID cannot be empty", nameof(operatorId));
+            throw new ArgumentException("Principal ID cannot be empty", nameof(principalId));
         }
 
         if (string.IsNullOrWhiteSpace(token))
@@ -214,7 +258,8 @@ public sealed class RefreshToken : Entity
         return new RefreshToken
         {
             Id = Guid.NewGuid(),
-            OperatorId = operatorId,
+            UserType = userType,
+            PrincipalId = principalId,
             Token = token,
             ExpiresAt = expiresAt,
             CreatedByIp = ipAddress ?? "unknown",
