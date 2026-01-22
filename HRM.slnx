@@ -25,6 +25,7 @@
     <File Path="src/Database/Identity/001_CreateOperatorsTable.sql" />
     <File Path="src/Database/Identity/002_CreateIndexes.sql" />
     <File Path="src/Database/Identity/003_SeedAdminOperator.sql" />
+    <File Path="src/Database/Identity/004_CreateRefreshTokensTable.sql" />
     <File Path="src/Database/Identity/README.md" />
   </Folder>
 </Solution>

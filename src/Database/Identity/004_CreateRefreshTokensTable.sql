@@ -6,15 +6,15 @@
 -- =============================================
 
 -- Drop table if exists (for development only - remove in production)
-IF OBJECT_ID('Identity.RefreshTokens', 'U') IS NOT NULL
+IF OBJECT_ID('[Identity].RefreshTokens', 'U') IS NOT NULL
 BEGIN
-    DROP TABLE Identity.RefreshTokens
+    DROP TABLE [Identity].RefreshTokens
     PRINT 'Table [Identity].[RefreshTokens] dropped'
 END
 GO
 
 -- Create RefreshTokens table
-CREATE TABLE Identity.RefreshTokens
+CREATE TABLE [Identity].RefreshTokens
 (
     -- Primary Key
     Id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
@@ -51,7 +51,7 @@ CREATE TABLE Identity.RefreshTokens
     -- Foreign Key Constraint
     CONSTRAINT FK_RefreshTokens_Operators_OperatorId
         FOREIGN KEY (OperatorId)
-        REFERENCES Identity.Operators(Id)
+        REFERENCES [Identity].Operators(Id)
         ON DELETE CASCADE, -- Delete tokens when operator deleted
 
     -- Unique Constraint (token must be unique)
@@ -66,22 +66,23 @@ GO
 
 -- 2. Index on OperatorId for loading user's sessions
 CREATE NONCLUSTERED INDEX IX_RefreshTokens_OperatorId
-    ON Identity.RefreshTokens(OperatorId)
+    ON [Identity].RefreshTokens(OperatorId)
     INCLUDE (Token, ExpiresAt, RevokedAt, CreatedAtUtc, UserAgent, CreatedByIp)
 GO
 
 -- 3. Index on ExpiresAt for cleanup job (delete expired tokens)
 CREATE NONCLUSTERED INDEX IX_RefreshTokens_ExpiresAt
-    ON Identity.RefreshTokens(ExpiresAt)
+    ON [Identity].RefreshTokens(ExpiresAt)
     WHERE RevokedAt IS NULL -- Only index active tokens
 GO
 
 -- 4. Composite index for active sessions query
 -- Used by GetActiveSessionsQuery: WHERE OperatorId = @id AND RevokedAt IS NULL AND ExpiresAt > GETUTCDATE()
+-- Note: ExpiresAt filter is applied at query time, not in the index WHERE clause (SQL Server limitation)
 CREATE NONCLUSTERED INDEX IX_RefreshTokens_OperatorId_Active
-    ON Identity.RefreshTokens(OperatorId, RevokedAt, ExpiresAt)
+    ON [Identity].RefreshTokens(OperatorId, ExpiresAt)
     INCLUDE (Token, CreatedAtUtc, UserAgent, CreatedByIp)
-    WHERE RevokedAt IS NULL AND ExpiresAt > GETUTCDATE()
+    WHERE RevokedAt IS NULL
 GO
 
 -- Add extended properties (documentation)
