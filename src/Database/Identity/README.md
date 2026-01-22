@@ -22,8 +22,24 @@ The Identity module uses SQL Server with schema separation (`Identity` schema) i
 1. **001_CreateOperatorsTable.sql** - Creates Identity schema and Operators table
 2. **002_CreateIndexes.sql** - Creates indexes for performance optimization
 3. **003_SeedAdminOperator.sql** - Seeds default admin operator
+4. **004_CreateRefreshTokensTable.sql** - Creates RefreshTokens table for JWT session management
+5. **005_MigrateRefreshTokensToPolymorphic.sql** - Migrates RefreshTokens to polymorphic design
 
 ## Quick Start
+
+### Option 0: Automated Script (Recommended)
+
+```bash
+# Linux/macOS
+cd src/Database/Identity
+./run-all-migrations.sh localhost HrmDb sa YourStrong@Passw0rd
+
+# The script will:
+# - Test connection
+# - Create database if not exists
+# - Execute all 5 migration scripts in order
+# - Show summary with success/skip/fail counts
+```
 
 ### Option 1: SQL Server Management Studio (SSMS)
 
@@ -35,6 +51,7 @@ GO
 
 -- 3. Open and execute scripts in order:
 --    File > Open > File > Select script > Execute (F5)
+--    001, 002, 003, 004, 005
 ```
 
 ### Option 2: sqlcmd (Command Line)
@@ -44,11 +61,15 @@ GO
 sqlcmd -S localhost -d HrmDb -i 001_CreateOperatorsTable.sql
 sqlcmd -S localhost -d HrmDb -i 002_CreateIndexes.sql
 sqlcmd -S localhost -d HrmDb -i 003_SeedAdminOperator.sql
+sqlcmd -S localhost -d HrmDb -i 004_CreateRefreshTokensTable.sql
+sqlcmd -S localhost -d HrmDb -i 005_MigrateRefreshTokensToPolymorphic.sql
 
 # Linux/Mac (with SQL Server Authentication)
 sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 001_CreateOperatorsTable.sql
 sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 002_CreateIndexes.sql
 sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 003_SeedAdminOperator.sql
+sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 004_CreateRefreshTokensTable.sql
+sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 005_MigrateRefreshTokensToPolymorphic.sql
 ```
 
 ### Option 3: Azure Data Studio
@@ -59,7 +80,7 @@ sqlcmd -S localhost -U sa -P YourPassword -d HrmDb -i 003_SeedAdminOperator.sql
 -- 3. Run (F5)
 ```
 
-### Option 4: Automated Script (PowerShell)
+### Option 4: Automated Script (PowerShell - Windows)
 
 ```powershell
 # run-identity-scripts.ps1
@@ -67,7 +88,7 @@ $Server = "localhost"
 $Database = "HrmDb"
 $ScriptsPath = "src/Database/Identity"
 
-# Execute scripts in order
+# Execute scripts in order (001, 002, 003, 004, 005)
 Get-ChildItem "$ScriptsPath\*.sql" | Sort-Object Name | ForEach-Object {
     Write-Host "Executing $_..."
     sqlcmd -S $Server -d $Database -i $_.FullName
@@ -79,6 +100,8 @@ Get-ChildItem "$ScriptsPath\*.sql" | Sort-Object Name | ForEach-Object {
 
 Write-Host "All scripts executed successfully"
 ```
+
+**Note**: Scripts 004 and 005 are required for refresh token functionality. Without them, login will fail to save refresh tokens.
 
 ## Script Details
 
@@ -206,6 +229,63 @@ Console.WriteLine(passwordHash);
 
 **Execution Time**: ~100ms
 
+### 004_CreateRefreshTokensTable.sql
+
+**Purpose**: Creates the RefreshTokens table for JWT session management
+
+**Tables Created**:
+- `Identity.RefreshTokens` - Refresh tokens for authentication sessions
+
+**Columns**:
+- `Id` (UNIQUEIDENTIFIER, PK) - Token ID
+- `OperatorId` (UNIQUEIDENTIFIER, FK → Operators.Id) - Owner of token
+- `Token` (NVARCHAR(200), UNIQUE) - Refresh token value (Base64)
+- `ExpiresAt` (DATETIME2) - Token expiration timestamp
+- `RevokedAt` (DATETIME2, NULL) - Revocation timestamp
+- `RevokedByIp` (NVARCHAR(50), NULL) - IP that revoked token
+- `ReplacedByToken` (NVARCHAR(200), NULL) - New token in rotation chain
+- `CreatedByIp` (NVARCHAR(50)) - IP that created token
+- `UserAgent` (NVARCHAR(500), NULL) - Browser/device info
+- Audit columns: `CreatedAtUtc`, `ModifiedAtUtc`, etc.
+- Soft delete: `IsDeleted`, `DeletedAtUtc`
+
+**Indexes**:
+1. `IX_RefreshTokens_OperatorId` - Fast lookup by operator
+2. `IX_RefreshTokens_ExpiresAt` - Cleanup expired tokens
+3. `IX_RefreshTokens_OperatorId_Active` - Active sessions query
+
+**Constraints**:
+- `PK_RefreshTokens` - Primary key
+- `FK_RefreshTokens_Operators_OperatorId` - Foreign key to Operators
+- `UQ_RefreshTokens_Token` - Unique token value
+
+**Execution Time**: ~150ms
+
+### 005_MigrateRefreshTokensToPolymorphic.sql
+
+**Purpose**: Migrates RefreshTokens table from Operator-only to polymorphic design supporting multiple user types (Operator, Employee, etc.)
+
+**Changes**:
+1. Adds `UserType` column (TINYINT, 1=Operator, 2=Employee)
+2. Renames `OperatorId` → `PrincipalId` (polymorphic foreign key)
+3. Drops old FK constraint (polymorphic design cannot have DB FK)
+4. Drops old indexes
+5. Creates new composite index `IX_RefreshTokens_Principal_Active`
+6. Adds CHECK constraint for valid UserType values
+
+**Migration Phases**:
+- Phase 1: Add UserType column (default 1=Operator)
+- Phase 2: Rename OperatorId to PrincipalId
+- Phase 3: Drop old FK constraint
+- Phase 4: Drop old indexes
+- Phase 5: Create new polymorphic indexes
+- Phase 6: Update extended properties
+- Phase 7: Validation
+
+**Execution Time**: ~300ms
+
+**Important**: This migration is safe for existing data. All existing tokens will have `UserType=1` (Operator).
+
 ## Verification
 
 After running all scripts, verify the setup:
@@ -244,6 +324,24 @@ WHERE Username = 'admin'
 -- Username: admin
 -- Status: 1 (Active)
 -- ActivatedAtUtc: (current timestamp)
+
+-- Check RefreshTokens table exists
+SELECT * FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'Identity' AND TABLE_NAME = 'RefreshTokens'
+
+-- Check RefreshTokens columns (should have UserType and PrincipalId)
+SELECT COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'Identity' AND TABLE_NAME = 'RefreshTokens'
+ORDER BY ORDINAL_POSITION
+
+-- Verify polymorphic index exists
+SELECT
+    i.name AS IndexName,
+    i.type_desc AS IndexType
+FROM sys.indexes i
+WHERE i.object_id = OBJECT_ID('Identity.RefreshTokens')
+  AND i.name = 'IX_RefreshTokens_Principal_Active'
 ```
 
 ## Rollback (Development Only)
