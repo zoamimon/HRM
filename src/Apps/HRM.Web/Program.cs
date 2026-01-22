@@ -6,6 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllersWithViews();
 
+// Add HttpContextAccessor for accessing HttpContext in services
+builder.Services.AddHttpContextAccessor();
+
 // Configure Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -22,13 +25,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
-// Register ApiClient for calling HRM.Api
+// Register AuthTokenHandler for attaching Bearer token to API requests
+builder.Services.AddTransient<AuthTokenHandler>();
+
+// Register ApiClient for calling HRM.Api with automatic token attachment
 builder.Services.AddHttpClient("HRM.Api", client =>
 {
     var apiBaseUrl = builder.Configuration["HRM:ApiBaseUrl"] ?? "https://localhost:5001";
     client.BaseAddress = new Uri(apiBaseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-});
+})
+.AddHttpMessageHandler<AuthTokenHandler>(); // Automatically attach Bearer token to all requests
 
 builder.Services.AddScoped<IApiClient, ApiClient>();
 
