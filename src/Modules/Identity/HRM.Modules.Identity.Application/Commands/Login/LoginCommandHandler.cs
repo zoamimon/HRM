@@ -71,14 +71,14 @@ public sealed class LoginCommandHandler
         if (@operator is null)
         {
             // Don't reveal that user doesn't exist (security)
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidCredentials());
         }
 
         // 2. Check if account is locked
         if (@operator.LockedUntilUtc.HasValue && @operator.LockedUntilUtc.Value > DateTime.UtcNow)
         {
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
         }
 
@@ -87,11 +87,11 @@ public sealed class LoginCommandHandler
         {
             if (@operator.Status == OperatorStatus.Suspended)
             {
-                return Result<LoginResponse>.Failure(
+                return Result.Failure<LoginResponse>(
                     AuthenticationErrors.AccountSuspended());
             }
 
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountNotActive());
         }
 
@@ -107,7 +107,7 @@ public sealed class LoginCommandHandler
             // @operator.RecordFailedLoginAttempt();
 
             // Generic error (don't reveal password was wrong)
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidCredentials());
         }
 
@@ -154,7 +154,7 @@ public sealed class LoginCommandHandler
             }
         };
 
-        return Result<LoginResponse>.Success(response);
+        return Result.Success(response);
     }
 
     /// <summary>

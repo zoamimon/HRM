@@ -69,20 +69,20 @@ public sealed class RefreshTokenCommandHandler
 
         if (existingToken is null)
         {
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidRefreshToken());
         }
 
         // 2. Check if token is active (not revoked, not expired)
         if (existingToken.RevokedAt.HasValue)
         {
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.RefreshTokenRevoked());
         }
 
         if (existingToken.IsExpired)
         {
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.RefreshTokenExpired());
         }
 
@@ -93,18 +93,18 @@ public sealed class RefreshTokenCommandHandler
         {
             if (@operator.Status == OperatorStatus.Suspended)
             {
-                return Result<LoginResponse>.Failure(
+                return Result.Failure<LoginResponse>(
                     AuthenticationErrors.AccountSuspended());
             }
 
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountNotActive());
         }
 
         // 4. Check if account is locked
         if (@operator.LockedUntilUtc.HasValue && @operator.LockedUntilUtc.Value > DateTime.UtcNow)
         {
-            return Result<LoginResponse>.Failure(
+            return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
         }
 
@@ -147,6 +147,6 @@ public sealed class RefreshTokenCommandHandler
             }
         };
 
-        return Result<LoginResponse>.Success(response);
+        return Result.Success(response);
     }
 }

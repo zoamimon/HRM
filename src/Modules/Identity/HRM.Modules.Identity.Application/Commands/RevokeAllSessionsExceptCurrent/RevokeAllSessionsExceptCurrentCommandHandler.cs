@@ -53,7 +53,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
 
         if (currentToken is null)
         {
-            return Result<RevokeAllSessionsResult>.Failure(
+            return Result.Failure<RevokeAllSessionsResult>(
                 SessionErrors.CannotIdentifyCurrentSession());
         }
 
@@ -66,7 +66,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         // 3. If no sessions to revoke, return success
         if (sessionsToRevoke.Count == 0)
         {
-            return Result<RevokeAllSessionsResult>.Success(new RevokeAllSessionsResult
+            return Result.Success(new RevokeAllSessionsResult
             {
                 RevokedCount = 0,
                 Message = "No other active sessions found"
@@ -86,7 +86,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
             ? "1 session was terminated"
             : $"{sessionsToRevoke.Count} sessions were terminated";
 
-        return Result<RevokeAllSessionsResult>.Success(new RevokeAllSessionsResult
+        return Result.Success(new RevokeAllSessionsResult
         {
             RevokedCount = sessionsToRevoke.Count,
             Message = message
