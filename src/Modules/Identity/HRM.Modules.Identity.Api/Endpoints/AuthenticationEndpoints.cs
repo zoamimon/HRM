@@ -266,17 +266,19 @@ public static class AuthenticationEndpoints
 
             var result = await sender.Send(command);
 
-            return result.Match(
-                onSuccess: () => Results.NoContent(),
-                onFailure: error => Results.Problem(
-                    statusCode: error switch
-                    {
-                        HRM.BuildingBlocks.Domain.Abstractions.Results.NotFoundError => StatusCodes.Status404NotFound,
-                        HRM.BuildingBlocks.Domain.Abstractions.Results.ForbiddenError => StatusCodes.Status403Forbidden,
-                        _ => StatusCodes.Status400BadRequest
-                    },
-                    title: error.Code,
-                    detail: error.Message
+            return await result.Match<IResult>(
+                onSuccess: () => Task.FromResult(Results.NoContent()),
+                onFailure: error => Task.FromResult(
+                    Results.Problem(
+                        statusCode: error switch
+                        {
+                            HRM.BuildingBlocks.Domain.Abstractions.Results.NotFoundError => StatusCodes.Status404NotFound,
+                            HRM.BuildingBlocks.Domain.Abstractions.Results.ForbiddenError => StatusCodes.Status403Forbidden,
+                            _ => StatusCodes.Status400BadRequest
+                        },
+                        title: error.Code,
+                        detail: error.Message
+                    )
                 )
             );
         })
