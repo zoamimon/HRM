@@ -3,8 +3,10 @@ using System.Text;
 using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
+using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
+using HRM.BuildingBlocks.Infrastructure.Http;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -41,9 +43,10 @@ namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 /// What Gets Registered:
 /// - IEventBus → InMemoryEventBus (singleton)
 /// - ICurrentUserService → CurrentUserService (scoped)
+/// - IClientInfoService → ClientInfoService (scoped)
 /// - IClaimsTransformation → RolesClaimsTransformation (scoped)
 /// - AuditInterceptor (scoped - depends on ICurrentUserService)
-/// - HttpContextAccessor (for CurrentUserService)
+/// - HttpContextAccessor (for CurrentUserService and ClientInfoService)
 ///
 /// NOT Registered Here (moved to Application layer):
 /// - MediatR (registered in BuildingBlocksApplication)
@@ -61,14 +64,15 @@ public static class InfrastructureServiceExtensions
     ///
     /// Services Registered:
     /// - Event Bus (InMemoryEventBus)
-    /// - Authentication services (CurrentUserService only - IPasswordHasher/ITokenService moved to Identity module)
+    /// - Authentication services (CurrentUserService, ClientInfoService)
     /// - EF Core interceptors (AuditInterceptor)
     /// - HttpContextAccessor
-    /// - MediatR with pipeline behaviors (Logging, Validation, UnitOfWork)
+    /// - Claims transformation (RolesClaimsTransformation)
     ///
     /// Services NOT Registered (Module Responsibility):
     /// - IDataScopingService: Requires IDbConnection which is module-specific
     /// - IDbConnection: Each module must register with own connection string
+    /// - IPasswordHasher/ITokenService: Moved to Identity module (authentication-specific)
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Application configuration</param>
@@ -87,6 +91,12 @@ public static class InfrastructureServiceExtensions
         // NOTE: ICurrentUserService is shared across all modules for authorization
         // IPasswordHasher and ITokenService are registered in Identity module (authentication-specific)
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        // HTTP Context Services
+        // NOTE: IClientInfoService provides access to HTTP request context (IP, UserAgent, etc.)
+        // Used for audit logging, session management, and security tracking
+        // Abstracts away HttpContext from application layer (Clean Architecture)
+        services.AddScoped<IClientInfoService, ClientInfoService>();
 
         // Claims Transformation
         // Normalizes role claims from various formats (comma-separated, multiple claims, etc.)

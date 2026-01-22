@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Application.Abstractions.Authentication;
+using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
 using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Commands.Login;
 using HRM.Modules.Identity.Application.Commands.Logout;
@@ -49,16 +50,17 @@ public static class AuthenticationEndpoints
         // Authenticate operator and return access + refresh tokens
         // ================================================================
         group.MapPost("/login", async (
+            HttpContext httpContext,
             LoginRequest request,
             ISender sender,
-            HttpContext httpContext) =>
+            IClientInfoService clientInfo) =>
         {
             var command = new LoginCommand(
                 request.UsernameOrEmail,
                 request.Password,
                 request.RememberMe,
-                httpContext.Connection.RemoteIpAddress?.ToString(),
-                httpContext.Request.Headers.UserAgent.ToString()
+                clientInfo.IpAddress,
+                clientInfo.UserAgent
             );
 
             var result = await sender.Send(command);
@@ -114,9 +116,10 @@ public static class AuthenticationEndpoints
         // Refresh access token using refresh token
         // ================================================================
         group.MapPost("/refresh", async (
+            HttpContext httpContext,
             RefreshRequest? request,
             ISender sender,
-            HttpContext httpContext) =>
+            IClientInfoService clientInfo) =>
         {
             // Try to get refresh token from cookie first (web), then body (mobile)
             var refreshToken = httpContext.Request.Cookies["refreshToken"]
@@ -133,8 +136,8 @@ public static class AuthenticationEndpoints
 
             var command = new RefreshTokenCommand(
                 refreshToken,
-                httpContext.Connection.RemoteIpAddress?.ToString(),
-                httpContext.Request.Headers.UserAgent.ToString()
+                clientInfo.IpAddress,
+                clientInfo.UserAgent
             );
 
             var result = await sender.Send(command);
@@ -182,9 +185,10 @@ public static class AuthenticationEndpoints
         // Logout and revoke refresh token
         // ================================================================
         group.MapPost("/logout", async (
+            HttpContext httpContext,
             LogoutRequest? request,
             ISender sender,
-            HttpContext httpContext) =>
+            IClientInfoService clientInfo) =>
         {
             // Try to get refresh token from cookie first, then body
             var refreshToken = httpContext.Request.Cookies["refreshToken"]
@@ -194,7 +198,7 @@ public static class AuthenticationEndpoints
             {
                 var command = new LogoutCommand(
                     refreshToken,
-                    httpContext.Connection.RemoteIpAddress?.ToString()
+                    clientInfo.IpAddress
                 );
 
                 await sender.Send(command);
@@ -216,9 +220,9 @@ public static class AuthenticationEndpoints
         // Get all active sessions (devices)
         // ================================================================
         group.MapGet("/sessions", async (
+            HttpContext httpContext,
             ISender sender,
-            ICurrentUserService currentUserService,
-            HttpContext httpContext) =>
+            ICurrentUserService currentUserService) =>
         {
             var currentToken = httpContext.Request.Cookies["refreshToken"];
 
@@ -252,12 +256,12 @@ public static class AuthenticationEndpoints
             Guid sessionId,
             ISender sender,
             ICurrentUserService currentUserService,
-            HttpContext httpContext) =>
+            IClientInfoService clientInfo) =>
         {
             var command = new RevokeSessionCommand(
                 sessionId,
                 currentUserService.UserId,
-                httpContext.Connection.RemoteIpAddress?.ToString()
+                clientInfo.IpAddress
             );
 
             var result = await sender.Send(command);
@@ -289,9 +293,10 @@ public static class AuthenticationEndpoints
         // Logout from all other devices (security feature)
         // ================================================================
         group.MapPost("/sessions/revoke-all-except-current", async (
+            HttpContext httpContext,
             ISender sender,
             ICurrentUserService currentUserService,
-            HttpContext httpContext) =>
+            IClientInfoService clientInfo) =>
         {
             var currentToken = httpContext.Request.Cookies["refreshToken"];
 
@@ -307,7 +312,7 @@ public static class AuthenticationEndpoints
             var command = new RevokeAllSessionsExceptCurrentCommand(
                 currentUserService.UserId,
                 currentToken,
-                httpContext.Connection.RemoteIpAddress?.ToString()
+                clientInfo.IpAddress
             );
 
             var result = await sender.Send(command);
