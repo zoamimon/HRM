@@ -13,6 +13,13 @@ public interface IApiClient
     Task<ApiResponse<OperatorResponse>> RegisterOperatorAsync(
         RegisterOperatorRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<LoginResponse>> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<object>> LogoutAsync(
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient : IApiClient
@@ -111,6 +118,169 @@ public sealed class ApiClient : IApiClient
         {
             _logger.LogError(ex, "Unexpected error while calling HRM.Api");
             return new ApiResponse<OperatorResponse>
+            {
+                IsSuccess = false,
+                ErrorCode = "UnexpectedError",
+                ErrorMessage = "An unexpected error occurred. Please contact support."
+            };
+        }
+    }
+
+    /// <summary>
+    /// Login operator via HRM.Api
+    /// </summary>
+    public async Task<ApiResponse<LoginResponse>> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient("HRM.Api");
+
+            var apiRequest = new
+            {
+                request.UsernameOrEmail,
+                request.Password,
+                request.RememberMe
+            };
+
+            var response = await httpClient.PostAsJsonAsync(
+                "/api/identity/auth/login",
+                apiRequest,
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<LoginResponse>(cancellationToken);
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = true,
+                    Data = data
+                };
+            }
+
+            // Handle error responses
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            try
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = false,
+                    ErrorCode = problemDetails?.Type ?? "LoginError",
+                    ErrorMessage = problemDetails?.Detail ?? "Invalid username or password",
+                    ValidationErrors = problemDetails?.Errors
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to deserialize ProblemDetails. Raw response: {ErrorContent}", errorContent);
+
+                return new ApiResponse<LoginResponse>
+                {
+                    IsSuccess = false,
+                    ErrorCode = "LoginError",
+                    ErrorMessage = $"Server returned {(int)response.StatusCode}: {errorContent}"
+                };
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error while calling HRM.Api");
+            return new ApiResponse<LoginResponse>
+            {
+                IsSuccess = false,
+                ErrorCode = "NetworkError",
+                ErrorMessage = "Failed to connect to API server. Please try again later."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while calling HRM.Api");
+            return new ApiResponse<LoginResponse>
+            {
+                IsSuccess = false,
+                ErrorCode = "UnexpectedError",
+                ErrorMessage = "An unexpected error occurred. Please contact support."
+            };
+        }
+    }
+
+    /// <summary>
+    /// Logout current operator via HRM.Api
+    /// </summary>
+    public async Task<ApiResponse<object>> LogoutAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient("HRM.Api");
+
+            var response = await httpClient.PostAsync(
+                "/api/identity/auth/logout",
+                null,
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return new ApiResponse<object>
+                {
+                    IsSuccess = true,
+                    Data = new { message = "Logged out successfully" }
+                };
+            }
+
+            // Handle error responses
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            try
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                return new ApiResponse<object>
+                {
+                    IsSuccess = false,
+                    ErrorCode = problemDetails?.Type ?? "LogoutError",
+                    ErrorMessage = problemDetails?.Detail ?? "Failed to logout",
+                    ValidationErrors = problemDetails?.Errors
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to deserialize ProblemDetails. Raw response: {ErrorContent}", errorContent);
+
+                return new ApiResponse<object>
+                {
+                    IsSuccess = false,
+                    ErrorCode = "LogoutError",
+                    ErrorMessage = $"Server returned {(int)response.StatusCode}: {errorContent}"
+                };
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error while calling HRM.Api");
+            return new ApiResponse<object>
+            {
+                IsSuccess = false,
+                ErrorCode = "NetworkError",
+                ErrorMessage = "Failed to connect to API server. Please try again later."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while calling HRM.Api");
+            return new ApiResponse<object>
             {
                 IsSuccess = false,
                 ErrorCode = "UnexpectedError",

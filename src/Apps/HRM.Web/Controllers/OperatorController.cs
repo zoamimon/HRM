@@ -1,5 +1,6 @@
 using HRM.Web.Models;
 using HRM.Web.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HRM.Web.Controllers;
@@ -8,6 +9,7 @@ namespace HRM.Web.Controllers;
 /// Controller for operator management
 /// Handles operator registration and related operations
 /// </summary>
+[Authorize]
 public class OperatorController : Controller
 {
     private readonly IApiClient _apiClient;
