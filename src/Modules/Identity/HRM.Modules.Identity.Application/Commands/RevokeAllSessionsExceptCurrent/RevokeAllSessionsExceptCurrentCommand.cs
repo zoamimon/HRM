@@ -27,8 +27,13 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 /// Security:
 /// - Current token required (cannot accidentally logout self)
 /// - OperatorId from authenticated context
-/// - IP tracking for audit trail
+/// - IP tracking for audit trail (auto-injected by AuditBehavior)
 /// - Bulk operation (atomic transaction)
+///
+/// Audit Logging:
+/// - Implements IAuditableCommand for automatic audit injection
+/// - IpAddress and UserAgent automatically populated by AuditBehavior
+/// - No need to pass audit parameters from API endpoint
 ///
 /// Usage (API):
 /// <code>
@@ -45,17 +50,25 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeAllSessionsExceptCurre
 /// </summary>
 /// <param name="OperatorId">Current operator ID (from auth context)</param>
 /// <param name="CurrentRefreshToken">Current refresh token to preserve</param>
-/// <param name="IpAddress">IP address for audit trail</param>
 public sealed record RevokeAllSessionsExceptCurrentCommand(
     Guid OperatorId,
-    string CurrentRefreshToken,
-    string? IpAddress = null
-) : IModuleCommand<RevokeAllSessionsResult>
+    string CurrentRefreshToken
+) : IModuleCommand<RevokeAllSessionsResult>, IAuditableCommand
 {
     /// <summary>
     /// Module name for Unit of Work routing
     /// </summary>
     public string ModuleName => "Identity";
+
+    /// <summary>
+    /// IP address for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? IpAddress { get; set; }
+
+    /// <summary>
+    /// User agent for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? UserAgent { get; set; }
 }
 
 /// <summary>

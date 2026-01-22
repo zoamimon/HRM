@@ -187,8 +187,7 @@ public static class AuthenticationEndpoints
         group.MapPost("/logout", async (
             HttpContext httpContext,
             LogoutRequest? request,
-            ISender sender,
-            IClientInfoService clientInfo) =>
+            ISender sender) =>
         {
             // Try to get refresh token from cookie first, then body
             var refreshToken = httpContext.Request.Cookies["refreshToken"]
@@ -196,10 +195,8 @@ public static class AuthenticationEndpoints
 
             if (!string.IsNullOrWhiteSpace(refreshToken))
             {
-                var command = new LogoutCommand(
-                    refreshToken,
-                    clientInfo.IpAddress
-                );
+                // AuditBehavior will automatically inject IP/UserAgent
+                var command = new LogoutCommand(refreshToken);
 
                 await sender.Send(command);
             }
@@ -255,13 +252,12 @@ public static class AuthenticationEndpoints
         group.MapDelete("/sessions/{sessionId:guid}", async (
             Guid sessionId,
             ISender sender,
-            ICurrentUserService currentUserService,
-            IClientInfoService clientInfo) =>
+            ICurrentUserService currentUserService) =>
         {
+            // AuditBehavior will automatically inject IP/UserAgent
             var command = new RevokeSessionCommand(
                 sessionId,
-                currentUserService.UserId,
-                clientInfo.IpAddress
+                currentUserService.UserId
             );
 
             var result = await sender.Send(command);
@@ -297,8 +293,7 @@ public static class AuthenticationEndpoints
         group.MapPost("/sessions/revoke-all-except-current", async (
             HttpContext httpContext,
             ISender sender,
-            ICurrentUserService currentUserService,
-            IClientInfoService clientInfo) =>
+            ICurrentUserService currentUserService) =>
         {
             var currentToken = httpContext.Request.Cookies["refreshToken"];
 
@@ -311,10 +306,10 @@ public static class AuthenticationEndpoints
                 );
             }
 
+            // AuditBehavior will automatically inject IP/UserAgent
             var command = new RevokeAllSessionsExceptCurrentCommand(
                 currentUserService.UserId,
-                currentToken,
-                clientInfo.IpAddress
+                currentToken
             );
 
             var result = await sender.Send(command);

@@ -27,7 +27,12 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeSession;
 /// Security:
 /// - OperatorId from authenticated context
 /// - Cannot revoke other users' sessions
-/// - IP tracking for audit trail
+/// - IP tracking for audit trail (auto-injected by AuditBehavior)
+///
+/// Audit Logging:
+/// - Implements IAuditableCommand for automatic audit injection
+/// - IpAddress and UserAgent automatically populated by AuditBehavior
+/// - No need to pass audit parameters from API endpoint
 ///
 /// Usage (API):
 /// <code>
@@ -39,15 +44,23 @@ namespace HRM.Modules.Identity.Application.Commands.RevokeSession;
 /// </summary>
 /// <param name="SessionId">Session ID to revoke (RefreshToken.Id)</param>
 /// <param name="OperatorId">Current operator ID (from auth context)</param>
-/// <param name="IpAddress">IP address for audit trail</param>
 public sealed record RevokeSessionCommand(
     Guid SessionId,
-    Guid OperatorId,
-    string? IpAddress = null
-) : IModuleCommand<Result>
+    Guid OperatorId
+) : IModuleCommand<Result>, IAuditableCommand
 {
     /// <summary>
     /// Module name for Unit of Work routing
     /// </summary>
     public string ModuleName => "Identity";
+
+    /// <summary>
+    /// IP address for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? IpAddress { get; set; }
+
+    /// <summary>
+    /// User agent for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? UserAgent { get; set; }
 }

@@ -24,9 +24,14 @@ namespace HRM.Modules.Identity.Application.Commands.Logout;
 ///
 /// Business Rules:
 /// - Refresh token is revoked (RevokedAt set)
-/// - IP address recorded for audit
+/// - IP address recorded for audit (auto-injected by AuditBehavior)
 /// - Idempotent: Already revoked tokens return success
 /// - Invalid/expired tokens return success (no error)
+///
+/// Audit Logging:
+/// - Implements IAuditableCommand for automatic audit injection
+/// - IpAddress and UserAgent automatically populated by AuditBehavior
+/// - No need to pass audit parameters from API endpoint
 ///
 /// Usage (API):
 /// <code>
@@ -41,14 +46,22 @@ namespace HRM.Modules.Identity.Application.Commands.Logout;
 /// </code>
 /// </summary>
 /// <param name="RefreshToken">Refresh token to revoke</param>
-/// <param name="IpAddress">IP address for audit trail</param>
 public sealed record LogoutCommand(
-    string RefreshToken,
-    string? IpAddress = null
-) : IModuleCommand<Result>
+    string RefreshToken
+) : IModuleCommand<Result>, IAuditableCommand
 {
     /// <summary>
     /// Module name for Unit of Work routing
     /// </summary>
     public string ModuleName => "Identity";
+
+    /// <summary>
+    /// IP address for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? IpAddress { get; set; }
+
+    /// <summary>
+    /// User agent for audit trail (auto-injected by AuditBehavior)
+    /// </summary>
+    public string? UserAgent { get; set; }
 }

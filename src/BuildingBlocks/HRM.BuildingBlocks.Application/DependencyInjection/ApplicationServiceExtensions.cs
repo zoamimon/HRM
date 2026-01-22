@@ -30,14 +30,16 @@ public static class ApplicationServiceExtensions
     /// <summary>
     /// Add BuildingBlocks Application services
     /// Registers MediatR with all pipeline behaviors
-    /// 
+    ///
     /// Behavior Order (CRITICAL):
-    /// 1. LoggingBehavior    - Log all requests (even failures)
-    /// 2. ValidationBehavior - Fail fast before transaction
-    /// 3. UnitOfWorkBehavior - Wrap handler with transaction
-    /// 
+    /// 1. AuditBehavior      - Inject IP/UserAgent before validation (for IAuditableCommand)
+    /// 2. LoggingBehavior    - Log all requests (even failures)
+    /// 3. ValidationBehavior - Fail fast before transaction
+    /// 4. UnitOfWorkBehavior - Wrap handler with transaction
+    ///
     /// Why This Order:
-    /// - Logging first → captures all requests including validation failures
+    /// - Audit first → ensures audit data available for validation and logging
+    /// - Logging second → captures all requests including validation failures
     /// - Validation before UoW → no wasted database connections
     /// - UoW wraps handler → only commit if handler succeeds
     /// </summary>
@@ -52,6 +54,7 @@ public static class ApplicationServiceExtensions
 
             // Register pipeline behaviors in order
             // Order matters! See documentation above
+            config.AddOpenBehavior(typeof(AuditBehavior<,>));
             config.AddOpenBehavior(typeof(LoggingBehavior<,>));
             config.AddOpenBehavior(typeof(ValidationBehavior<,>));
             config.AddOpenBehavior(typeof(UnitOfWorkBehavior<,>));
