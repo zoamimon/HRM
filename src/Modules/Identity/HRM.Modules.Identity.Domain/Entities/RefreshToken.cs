@@ -72,7 +72,7 @@ public sealed class RefreshToken : Entity
     ///
     /// References:
     /// - UserType.Operator → [Identity].Operators.Id
-    /// - UserType.Employee → [Personnel].Employees.Id
+    /// - UserType.User → [Identity].User.Id
     ///
     /// Note: Database cannot enforce FK constraint (polymorphic limitation)
     /// Application must validate principal exists before creating token

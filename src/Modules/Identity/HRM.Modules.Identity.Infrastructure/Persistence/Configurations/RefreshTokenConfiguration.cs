@@ -6,17 +6,18 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence.Configurations;
 
 /// <summary>
 /// EF Core entity configuration for RefreshToken
-/// Defines table schema, columns, indexes, constraints, relationships
+/// Defines table schema, columns, indexes, constraints
 ///
 /// Table: Identity.RefreshTokens
 /// Primary Key: Id (GUID, clustered index)
-/// Foreign Key: OperatorId -> Identity.Operators(Id)
+/// Polymorphic Design: UserType + PrincipalId (no FK constraint)
 /// Unique Constraints: Token
-/// Indexes: Token (unique), OperatorId, ExpiresAt, IsActive (computed)
+/// Indexes: Token (unique), (UserType, PrincipalId), ExpiresAt
 ///
 /// Column Mappings:
 /// - Id: UNIQUEIDENTIFIER, PK, NOT NULL
-/// - OperatorId: UNIQUEIDENTIFIER, FK, NOT NULL
+/// - UserType: TINYINT, NOT NULL (discriminator for polymorphic association)
+/// - PrincipalId: UNIQUEIDENTIFIER, NOT NULL (polymorphic FK to Operators/Users)
 /// - Token: NVARCHAR(200), UNIQUE, NOT NULL (Base64-encoded, ~88 chars)
 /// - ExpiresAt: DATETIME2, NOT NULL (UTC)
 /// - RevokedAt: DATETIME2, NULL (UTC)
@@ -28,23 +29,21 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence.Configurations;
 ///
 /// Indexes:
 /// - IX_RefreshTokens_Token: UNIQUE, for token lookup during validation
-/// - IX_RefreshTokens_OperatorId: For loading operator's sessions
+/// - IX_RefreshTokens_UserType_PrincipalId: For loading user's sessions
 /// - IX_RefreshTokens_ExpiresAt: For cleanup of expired tokens
-/// - IX_RefreshTokens_OperatorId_IsActive: Composite for active sessions query
+/// - IX_RefreshTokens_UserType_PrincipalId_Active: Composite for active sessions query
 ///
-/// Relationships:
-/// - One Operator has many RefreshTokens (multi-device support)
-/// - Cascade delete: When operator deleted, tokens are deleted
+/// Polymorphic Relationships:
+/// - UserType.Operator + PrincipalId → Identity.Operators.Id
+/// - UserType.User + PrincipalId → Identity.User.Id
+/// - No FK constraint (polymorphic limitation)
+/// - Application validates principal exists before creating token
 ///
 /// Performance Considerations:
-/// - Token index with INCLUDE(OperatorId, ExpiresAt) - avoid key lookups
-/// - Composite index on OperatorId + computed IsActive column
+/// - Token index with INCLUDE(UserType, PrincipalId, ExpiresAt) - avoid key lookups
+/// - Composite index on (UserType, PrincipalId, RevokedAt, ExpiresAt)
 /// - ExpiresAt index for periodic cleanup job
 /// - DATETIME2 for all timestamps (smaller than DATETIME)
-///
-/// Computed Columns:
-/// - IsActive: (RevokedAt IS NULL AND GETUTCDATE() < ExpiresAt)
-/// - Persisted for indexing, updated automatically
 /// </summary>
 internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
@@ -58,8 +57,13 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
 
         // Properties
 
-        // OperatorId: Foreign key to Operators table
-        builder.Property(rt => rt.OperatorId)
+        // UserType: Discriminator for polymorphic association
+        builder.Property(rt => rt.UserType)
+            .IsRequired()
+            .HasColumnType("TINYINT");
+
+        // PrincipalId: Polymorphic foreign key (Operator.Id or User.Id)
+        builder.Property(rt => rt.PrincipalId)
             .IsRequired();
 
         // Token: Base64-encoded random string, ~88 chars for 64 bytes
@@ -105,13 +109,9 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
             .HasColumnType("DATETIME2");
 
         // Relationships
-
-        // Many-to-One: RefreshToken -> Operator
-        builder.HasOne(rt => rt.Operator)
-            .WithMany() // Operator doesn't have navigation to RefreshTokens
-            .HasForeignKey(rt => rt.OperatorId)
-            .OnDelete(DeleteBehavior.Cascade) // Delete tokens when operator deleted
-            .HasConstraintName("FK_RefreshTokens_Operators_OperatorId");
+        // None - Polymorphic design uses UserType + PrincipalId
+        // No FK constraint possible across multiple tables
+        // Application must validate principal exists before creating token
 
         // Indexes
 
@@ -120,18 +120,18 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
             .IsUnique()
             .HasDatabaseName("IX_RefreshTokens_Token");
 
-        // Index on OperatorId for loading user's sessions
-        builder.HasIndex(rt => rt.OperatorId)
-            .HasDatabaseName("IX_RefreshTokens_OperatorId");
+        // Index on (UserType, PrincipalId) for loading user's sessions
+        builder.HasIndex(rt => new { rt.UserType, rt.PrincipalId })
+            .HasDatabaseName("IX_RefreshTokens_UserType_PrincipalId");
 
         // Index on ExpiresAt for cleanup job
         builder.HasIndex(rt => rt.ExpiresAt)
             .HasDatabaseName("IX_RefreshTokens_ExpiresAt");
 
         // Composite index for active sessions query (GetActiveSessionsQuery)
-        // WHERE OperatorId = @id AND RevokedAt IS NULL AND GETUTCDATE() < ExpiresAt
-        builder.HasIndex(rt => new { rt.OperatorId, rt.RevokedAt, rt.ExpiresAt })
-            .HasDatabaseName("IX_RefreshTokens_OperatorId_Active");
+        // WHERE UserType = @type AND PrincipalId = @id AND RevokedAt IS NULL AND GETUTCDATE() < ExpiresAt
+        builder.HasIndex(rt => new { rt.UserType, rt.PrincipalId, rt.RevokedAt, rt.ExpiresAt })
+            .HasDatabaseName("IX_RefreshTokens_UserType_PrincipalId_Active");
 
         // Ignore computed properties (not mapped to database)
         builder.Ignore(rt => rt.IsActive);
