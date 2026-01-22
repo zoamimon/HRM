@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Commands.Login;
 using HRM.Modules.Identity.Application.Commands.Logout;
