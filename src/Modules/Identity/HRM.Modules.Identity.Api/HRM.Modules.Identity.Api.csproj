@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core for Minimal API -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
+
+    <!-- MediatR -->
+    <PackageReference Include="MediatR" Version="14.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRM.Modules.Identity.Application\HRM.Modules.Identity.Application.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Identity.Infrastructure\HRM.Modules.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\HRM.Modules.Identity.Domain\HRM.Modules.Identity.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

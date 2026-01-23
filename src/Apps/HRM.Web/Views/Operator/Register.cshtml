@@ -1,0 +1,72 @@
+@model RegisterOperatorRequest
+
+@{
+    ViewData["Title"] = "Register Operator";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="mb-4">Register New Operator</h2>
+
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+        <form asp-action="Register" method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label"></label>
+                <input asp-for="Username" class="form-control" placeholder="Enter username" />
+                <span asp-validation-for="Username" class="text-danger"></span>
+                <div class="form-text">Username must be 3-50 characters and contain only letters, numbers, underscores, or hyphens.</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" placeholder="Enter full name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+                <div class="form-text">Your full legal name (1-200 characters).</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" placeholder="operator@example.com" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" class="form-control" type="tel" placeholder="+1234567890 (optional)" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                <div class="form-text">Optional. 10-15 digits with optional + prefix (e.g., +84912345678).</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label"></label>
+                <input asp-for="Password" class="form-control" type="password" placeholder="Enter password" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+                <div class="form-text">
+                    Password must be at least <strong>12 characters</strong> and contain:
+                    <ul class="mb-0">
+                        <li>At least one uppercase letter (A-Z)</li>
+                        <li>At least one lowercase letter (a-z)</li>
+                        <li>At least one number (0-9)</li>
+                        <li>At least one special character (!@@#$%^&*()_+-=[]{}|;:,.<>?)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ConfirmPassword" class="form-label"></label>
+                <input asp-for="ConfirmPassword" class="form-control" type="password" placeholder="Confirm password" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">Register Operator</button>
+                <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

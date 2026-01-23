@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Application.Results;
+using HRM.BuildingBlocks.Domain.Abstractions.Results;
 using MediatR;
 
 namespace HRM.BuildingBlocks.Application.Abstractions.Commands;
@@ -68,7 +68,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Commands;
 ///             );
 ///             
 ///             return Result.Failure(
-///                 Error.NotFound(
+///                 new NotFoundError(
 ///                     "Operator.NotFound",
 ///                     $"Operator with ID {command.OperatorId} not found"
 ///                 )
@@ -84,7 +84,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Commands;
 ///             );
 ///             
 ///             return Result.Failure(
-///                 Error.Forbidden(
+///                 new ForbiddenError(
 ///                     "Operator.CannotDeleteSystem",
 ///                     "System operators cannot be deleted"
 ///                 )
@@ -166,7 +166,7 @@ public interface ICommandHandler<in TCommand> : IRequestHandler<TCommand, Result
 ///             );
 ///             
 ///             return Result.Failure&lt;Guid&gt;(
-///                 Error.Conflict(
+///                 new ConflictError(
 ///                     "Operator.DuplicateUsername",
 ///                     $"Username '{command.Username}' is already taken"
 ///                 )
@@ -182,7 +182,7 @@ public interface ICommandHandler<in TCommand> : IRequestHandler<TCommand, Result
 ///             );
 ///             
 ///             return Result.Failure&lt;Guid&gt;(
-///                 Error.Conflict(
+///                 new ConflictError(
 ///                     "Operator.DuplicateEmail",
 ///                     $"Email '{command.Email}' is already registered"
 ///                 )

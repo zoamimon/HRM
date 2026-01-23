@@ -1,0 +1,21 @@
+@{
+    ViewData["Title"] = "Registration Successful";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+        <div class="alert alert-success" role="alert">
+            <h4 class="alert-heading">Success!</h4>
+            <p>@ViewBag.SuccessMessage</p>
+            <hr>
+            <p class="mb-0">
+                <strong>Operator ID:</strong> <code>@ViewBag.OperatorId</code>
+            </p>
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+            <a asp-action="Register" class="btn btn-primary">Register Another Operator</a>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+</div>
