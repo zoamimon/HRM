@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://hrm.system/permissions"
+           xmlns="http://hrm.system/permissions"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="PermissionTemplate">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Metadata" type="MetadataType"/>
+        <xs:element name="Permissions" type="PermissionsType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Metadata type -->
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="DisplayName" type="xs:string"/>
+      <xs:element name="Description" type="xs:string"/>
+      <xs:element name="Version" type="VersionType"/>
+      <xs:element name="ApplicableTo" type="ApplicableToType"/>
+      <xs:element name="Category" type="xs:string" minOccurs="0"/>
+      <xs:element name="IsSystem" type="xs:boolean" default="false" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Version type (major.minor format) -->
+  <xs:simpleType name="VersionType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+\.\d+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ApplicableTo type -->
+  <xs:simpleType name="ApplicableToType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="User"/>
+      <xs:enumeration value="Operator"/>
+      <xs:enumeration value="Both"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Permissions type -->
+  <xs:complexType name="PermissionsType">
+    <xs:sequence>
+      <xs:element name="Module" type="ModuleType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Module type -->
+  <xs:complexType name="ModuleType">
+    <xs:sequence>
+      <xs:element name="Entity" type="EntityType" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="displayName" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Entity type -->
+  <xs:complexType name="EntityType">
+    <xs:sequence>
+      <xs:element name="Action" type="ActionType" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="displayName" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Action type -->
+  <xs:complexType name="ActionType">
+    <xs:sequence>
+      <xs:element name="Scopes" type="ScopesType" minOccurs="0"/>
+      <xs:element name="Constraints" type="ConstraintsType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="displayName" type="xs:string" use="required"/>
+    <xs:attribute name="defaultScope" type="ScopeLevelType" use="optional"/>
+  </xs:complexType>
+
+  <!-- Scopes type -->
+  <xs:complexType name="ScopesType">
+    <xs:sequence>
+      <xs:element name="Scope" type="ScopeType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Scope type -->
+  <xs:complexType name="ScopeType">
+    <xs:attribute name="value" type="ScopeLevelType" use="required"/>
+    <xs:attribute name="displayName" type="xs:string" use="required"/>
+    <xs:attribute name="readOnly" type="xs:boolean" default="false"/>
+  </xs:complexType>
+
+  <!-- ScopeLevel enum -->
+  <xs:simpleType name="ScopeLevelType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Company"/>
+      <xs:enumeration value="Department"/>
+      <xs:enumeration value="Position"/>
+      <xs:enumeration value="Self"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Constraints type -->
+  <xs:complexType name="ConstraintsType">
+    <xs:sequence>
+      <xs:element name="Constraint" type="ConstraintType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Constraint type -->
+  <xs:complexType name="ConstraintType">
+    <xs:sequence>
+      <xs:element name="Parameters" type="ParametersType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="type" type="ConstraintTypeEnum" use="required"/>
+  </xs:complexType>
+
+  <!-- ConstraintType enum -->
+  <xs:simpleType name="ConstraintTypeEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ManagerOfTarget"/>
+      <xs:enumeration value="FieldRestriction"/>
+      <xs:enumeration value="DateRange"/>
+      <xs:enumeration value="WorkflowState"/>
+      <xs:enumeration value="CustomRule"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Parameters type -->
+  <xs:complexType name="ParametersType">
+    <xs:sequence>
+      <xs:element name="Parameter" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+          <xs:attribute name="value" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>
