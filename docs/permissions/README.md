@@ -1,52 +1,58 @@
-# Permission Template System - Documentation
+# Permission Catalog System - Documentation
 
 ## Overview
 
-The Permission Template System is a declarative, XML-based permission management system that separates **WHAT** capabilities exist from **HOW** they are enforced.
+The Permission Catalog System is a declarative, XML-based permission management system that defines all available permissions in the HRM system. Admins select permissions from the catalog via UI and assign them to roles, which are then stored in the database.
 
 ### Key Principles
 
-1. **Separation of Concerns**: XML defines capabilities (declarative), runtime evaluators enforce them (imperative)
-2. **Type Safety**: Strong domain models with compile-time validation
-3. **Flexibility**: Extensible constraint system for complex business rules
-4. **Scope-Based Access**: Hierarchical data visibility (Company → Department → Position → Self)
+1. **Single Source of Truth**: Permission Catalog defines ALL available permissions
+2. **UI-Driven Selection**: Admins select from catalog via UI - no manual XML editing
+3. **No Validation Needed**: Permissions are pre-validated in catalog
+4. **Type Safety**: Strong domain models with compile-time validation
+5. **Scope-Based Access**: Hierarchical data visibility (Company → Department → Position → Self)
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Permission Template                     │
-├─────────────────────────────────────────────────────────────┤
-│ Metadata                                                    │
-│  ├─ Name, Version, Description                             │
-│  ├─ ApplicableTo (User/Operator/Both)                      │
-│  └─ Category, IsSystem                                      │
+│                     Permission Catalog                      │
+│              (Single XML file - Read Only)                  │
 ├─────────────────────────────────────────────────────────────┤
 │ Permissions                                                  │
-│  └─ Modules (Personnel, Attendance, Payroll)                │
+│  └─ Modules (Personnel, Attendance, Payroll, Identity)      │
 │      └─ Entities (Employee, Department, Timesheet)          │
 │          └─ Actions (View, Create, Update, Delete)          │
 │              ├─ Scopes (Company, Department, Position, Self)│
 │              └─ Constraints (ManagerOfTarget, FieldRestrict)│
 └─────────────────────────────────────────────────────────────┘
+                            ↓
+                   Admin selects via UI
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   Database (Role Permissions)               │
+│  - Role: System Admin, HR Manager, Department Manager       │
+│  - Selected Permissions from Catalog                         │
+│  - User/Operator Assignments                                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## XML Structure
+## Permission Catalog Structure
 
-### Basic Template Structure
+### File Location
+
+`templates/permissions/PermissionCatalog.xml`
+
+### XML Structure
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<PermissionTemplate xmlns="http://hrm.system/permissions">
-  <Metadata>
-    <Name>TemplateName</Name>
-    <DisplayName>Display Name</DisplayName>
-    <Description>Template description</Description>
-    <Version>1.0</Version>
-    <ApplicableTo>User|Operator|Both</ApplicableTo>
-    <Category>Optional Category</Category>
-    <IsSystem>true|false</IsSystem>
-  </Metadata>
+<PermissionCatalog xmlns="http://hrm.system/permissions">
+  <!--
+    Permission Catalog - Defines all available permissions in system
+    Admin selects permissions from catalog via UI and saves to DB
+    No validation needed since permissions are predefined in catalog
+  -->
 
   <Permissions>
     <Module name="ModuleName" displayName="Display Name">
@@ -57,28 +63,37 @@ The Permission Template System is a declarative, XML-based permission management
       </Entity>
     </Module>
   </Permissions>
-</PermissionTemplate>
+</PermissionCatalog>
 ```
 
-## Metadata Fields
+## Modules and Entities
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `Name` | Yes | Unique identifier (e.g., "HRManager") |
-| `DisplayName` | Yes | UI-friendly name (e.g., "Quản lý nhân sự") |
-| `Description` | Yes | Detailed explanation of template purpose |
-| `Version` | Yes | Semantic version (format: `major.minor`, e.g., "1.0") |
-| `ApplicableTo` | Yes | Who can use this template: `User`, `Operator`, or `Both` |
-| `Category` | No | Group templates (e.g., "Management", "HR") |
-| `IsSystem` | No | System templates cannot be deleted (default: `false`) |
+The catalog defines permissions for all system modules:
 
-### ApplicableTo Behavior
+### 1. Personnel Module
+- **Employee**: View, Create, Update, Delete, Export, Import
+- **Department**: View, Create, Update, Delete
+- **Position**: View, Create, Update, Delete
+- **Company**: View, Create, Update, Delete
 
-| Value | For Users | For Operators |
-|-------|-----------|---------------|
-| `User` | ✅ Show in assignment UI<br>✅ Require scope selection | ❌ Hidden |
-| `Operator` | ❌ Hidden | ✅ Show in assignment UI<br>❌ No scope selection |
-| `Both` | ✅ Show, require scope | ✅ Show, no scope |
+### 2. Attendance Module
+- **Timesheet**: View, Create, Update, Delete, Approve, Export
+- **LeaveRequest**: View, Create, Update, Delete, Approve, Reject
+- **AttendancePolicy**: View, Create, Update, Delete
+
+### 3. Payroll Module
+- **Payroll**: View, Create, Update, Delete, Process, Approve, Export
+- **SalaryStructure**: View, Create, Update, Delete
+
+### 4. Identity Module
+- **User**: View, Create, Update, Delete, ResetPassword, AssignPermission
+- **Operator**: View, Create, Update, Delete, ResetPassword, AssignPermission
+- **Role**: View, Create, Update, Delete, AssignPermission
+
+### 5. System Module
+- **Configuration**: View, Update
+- **AuditLog**: View, Export
+- **SystemHealth**: View, Monitor
 
 ## Scopes
 
@@ -146,7 +161,7 @@ Actions define **operations** that can be performed on entities.
 
 ### Custom Actions
 
-You can define custom actions specific to entities:
+Domain-specific actions for entities:
 
 ```xml
 <Action name="Process" displayName="Xử lý bảng lương">
@@ -204,10 +219,6 @@ Requires user to be manager of target employee.
 - `AllowIndirect`: Allow manager of manager (default: `false`)
 - `MaxLevels`: Maximum management levels to check (default: `1`)
 
-**Use Cases:**
-- Manager approving subordinate's leave
-- Manager updating subordinate's performance review
-
 #### 2. FieldRestriction
 
 Restricts access to specific fields.
@@ -225,11 +236,6 @@ Restricts access to specific fields.
 - `Fields`: Comma-separated field names
 - `ApplyTo`: Which actions to restrict (View, Update, or both)
 
-**Use Cases:**
-- Hide salary from non-HR users
-- Prevent editing official records
-- Show only public fields
-
 #### 3. DateRange
 
 Restricts actions based on date range.
@@ -243,15 +249,6 @@ Restricts actions based on date range.
 </Constraint>
 ```
 
-**Parameters:**
-- `MinDays`: Minimum days from today (negative = past, positive = future)
-- `MaxDays`: Maximum days from today
-
-**Use Cases:**
-- Edit attendance only for last 30 days
-- Request leave only for future dates
-- Limit access to historical data
-
 #### 4. WorkflowState
 
 Restricts actions based on entity state.
@@ -264,165 +261,48 @@ Restricts actions based on entity state.
 </Constraint>
 ```
 
-**Parameters:**
-- `AllowedStates`: Comma-separated allowed states
-
 **Use Cases:**
 - Only approve pending requests
 - Cannot edit terminated employees
 - Only submit draft timesheets
 
-#### 5. CustomRule
+## Usage Workflow
 
-For complex business rules not covered by other types.
+### 1. Load Permission Catalog
 
-```xml
-<Constraint type="CustomRule">
-  <Parameters>
-    <Parameter name="RuleName" value="MaxOvertimeCheck" />
-    <Parameter name="Threshold" value="10" />
-  </Parameters>
-</Constraint>
-```
-
-## Examples
-
-### Example 1: Employee Self-Service
-
-Simple template for regular employees (Self scope only):
-
-```xml
-<PermissionTemplate xmlns="http://hrm.system/permissions">
-  <Metadata>
-    <Name>EmployeeSelfService</Name>
-    <DisplayName>Nhân viên - Tự phục vụ</DisplayName>
-    <Description>Nhân viên chỉ xem và cập nhật thông tin cá nhân</Description>
-    <Version>1.0</Version>
-    <ApplicableTo>User</ApplicableTo>
-    <IsSystem>true</IsSystem>
-  </Metadata>
-
-  <Permissions>
-    <Module name="Personnel" displayName="Quản lý nhân sự">
-      <Entity name="Employee" displayName="Nhân viên">
-
-        <Action name="View" displayName="Xem thông tin">
-          <Scopes>
-            <Scope value="Self" displayName="Chỉ bản thân" />
-          </Scopes>
-          <Constraints>
-            <Constraint type="FieldRestriction">
-              <Parameters>
-                <Parameter name="Fields" value="Salary,Bonus" />
-                <Parameter name="ApplyTo" value="View" />
-              </Parameters>
-            </Constraint>
-          </Constraints>
-        </Action>
-
-      </Entity>
-    </Module>
-  </Permissions>
-</PermissionTemplate>
-```
-
-### Example 2: Department Manager
-
-Manager with department scope and constraints:
-
-```xml
-<Action name="Update" displayName="Cập nhật thông tin nhân viên">
-  <Scopes>
-    <Scope value="Department" displayName="Cùng phòng ban" />
-  </Scopes>
-  <Constraints>
-    <!-- Must be manager -->
-    <Constraint type="ManagerOfTarget">
-      <Parameters>
-        <Parameter name="AllowIndirect" value="false" />
-        <Parameter name="MaxLevels" value="1" />
-      </Parameters>
-    </Constraint>
-    <!-- Cannot update salary -->
-    <Constraint type="FieldRestriction">
-      <Parameters>
-        <Parameter name="Fields" value="Salary,Bonus" />
-        <Parameter name="ApplyTo" value="Update" />
-      </Parameters>
-    </Constraint>
-  </Constraints>
-</Action>
-```
-
-### Example 3: System Administrator (Operator)
-
-Full access, no scopes:
-
-```xml
-<PermissionTemplate xmlns="http://hrm.system/permissions">
-  <Metadata>
-    <Name>SystemAdministrator</Name>
-    <DisplayName>Quản trị viên hệ thống</DisplayName>
-    <Description>Quyền truy cập đầy đủ toàn hệ thống</Description>
-    <Version>1.0</Version>
-    <ApplicableTo>Operator</ApplicableTo>
-    <IsSystem>true</IsSystem>
-  </Metadata>
-
-  <Permissions>
-    <Module name="Personnel" displayName="Quản lý nhân sự">
-      <Entity name="Employee" displayName="Nhân viên">
-        <!-- No scopes = global access for operators -->
-        <Action name="View" displayName="Xem" />
-        <Action name="Create" displayName="Tạo" />
-        <Action name="Update" displayName="Cập nhật" />
-        <Action name="Delete" displayName="Xóa" />
-      </Entity>
-    </Module>
-  </Permissions>
-</PermissionTemplate>
-```
-
-## Usage
-
-### 1. Parse XML Template
+The catalog is loaded once at application startup and cached:
 
 ```csharp
-// From string
-var template = await _parser.ParseAsync(xmlContent);
+// Load all available permissions from catalog
+var permissions = await _catalogService.LoadCatalogAsync();
 
-// From file
-var template = await _parser.ParseFromFileAsync("templates/HRManager.xml");
+// Get specific module
+var personnelModule = await _catalogService.GetModuleAsync("Personnel");
+
+// Get specific action
+var viewAction = await _catalogService.GetActionAsync("Personnel", "Employee", "View");
 ```
 
-### 2. Validate Template
+### 2. Admin Creates Role via UI
+
+Admin creates roles (e.g., "System Admin", "HR Manager") and selects permissions from the catalog:
+
+1. UI displays all modules from catalog
+2. Admin selects which actions to grant
+3. For each action with scopes, admin selects applicable scopes
+4. System saves role + selected permissions to database
+
+### 3. Assign Role to User/Operator
 
 ```csharp
-var errors = await _parser.ValidateAndGetErrorsAsync(xmlContent);
-if (errors.Any())
-{
-    // Handle validation errors
-}
-```
-
-### 3. Store Template
-
-```csharp
-await _repository.AddAsync(template);
-```
-
-### 4. Assign to User
-
-```csharp
-// Assign HR Manager template to user with Department scope
-var userPermission = new UserPermission(
+// Assign role to user
+var userRole = new UserRole(
     userId: userId,
-    templateId: hrManagerTemplate.Id,
-    scope: ScopeLevel.Department
+    roleId: roleId
 );
 ```
 
-### 5. Check Permission at Runtime
+### 4. Check Permission at Runtime
 
 ```csharp
 // Check if user can update employee
@@ -435,15 +315,66 @@ var canUpdate = await _permissionService.HasPermissionAsync(
 );
 ```
 
+## Example Scenarios
+
+### Scenario 1: Creating "HR Manager" Role
+
+Admin wants to create an "HR Manager" role with these permissions:
+
+**Personnel Module:**
+- View Employee (Department scope)
+- Create Employee (Department scope)
+- Update Employee (Department scope)
+- View Department (Company scope)
+
+**Attendance Module:**
+- View Timesheet (Department scope)
+- Approve Timesheet (Department scope)
+
+**Payroll Module:**
+- View Payroll (Department scope)
+- Create Payroll (Department scope)
+
+**UI Flow:**
+1. Admin navigates to "Roles" → "Create New Role"
+2. Enters name: "HR Manager"
+3. UI displays all modules from catalog
+4. Admin checks permissions and selects scopes
+5. Saves to database
+
+### Scenario 2: Creating "Employee Self-Service" Role
+
+**Personnel Module:**
+- View Employee (Self scope only)
+- Update Employee (Self scope, limited fields)
+
+**Attendance Module:**
+- View Timesheet (Self scope)
+- Create LeaveRequest (Self scope)
+
+### Scenario 3: Creating "System Administrator" Role (Operator)
+
+Operators have global access without scopes:
+
+**All Modules:**
+- Full access to all actions
+- No scope restrictions
+
 ## Best Practices
 
-### Template Design
+### Catalog Management
 
-1. **Start Simple**: Begin with basic View/Create/Update/Delete actions
-2. **Use System Templates**: Mark built-in templates as `IsSystem="true"`
-3. **Version Control**: Increment version when making changes
-4. **Clear Naming**: Use descriptive names (e.g., "HRManager", not "Template1")
-5. **Group by Category**: Use categories for organization
+1. **Version Control**: Keep catalog in source control
+2. **Review Changes**: Carefully review any catalog modifications
+3. **Reload Cache**: Clear cache after catalog updates
+4. **Backup**: Keep backup before editing catalog
+
+### Role Design
+
+1. **Start Simple**: Begin with basic roles (Admin, Manager, Employee)
+2. **Principle of Least Privilege**: Grant minimum permissions needed
+3. **Role Hierarchy**: Use inheritance where possible
+4. **Clear Naming**: Use descriptive role names
 
 ### Scope Selection
 
@@ -452,36 +383,39 @@ var canUpdate = await _permissionService.HasPermissionAsync(
 3. **Avoid Company for Everyone**: Company scope is for high-level roles only
 4. **Self for Employees**: Regular employees should have Self scope
 
-### Constraints
+## Performance Considerations
 
-1. **Combine Constraints**: Use multiple constraints for complex rules
-2. **ManagerOfTarget for Approval**: Always require manager for approval actions
-3. **FieldRestriction for Security**: Hide sensitive data (salary, SSN, etc.)
-4. **DateRange for Temporal**: Limit editing to recent records
-5. **WorkflowState for Consistency**: Enforce workflow transitions
-
-### Performance
-
-1. **Cache Templates**: Load templates once and cache in memory
-2. **Index by Name**: Fast lookup by template name
-3. **Lazy Load XML**: Don't parse XML until needed
-4. **Batch Permission Checks**: Check multiple permissions at once
+1. **Catalog Caching**: Catalog is loaded once and cached in memory
+2. **Cache Duration**: 1 hour (configurable)
+3. **Fast Lookups**: In-memory dictionary for O(1) access
+4. **Lazy Loading**: Only load when needed
 
 ## Files
 
-- **XML Schema**: `docs/permissions/PermissionTemplate.xsd`
-- **Sample Templates**: `templates/permissions/*.xml`
-- **Domain Models**: `src/Modules/Identity/HRM.Modules.Identity.Domain/`
-  - Entities: `Entities/Permissions/PermissionTemplate.cs`
-  - Value Objects: `ValueObjects/Permission*.cs`
-  - Enums: `Enums/ConstraintType.cs`, `Enums/ApplicableTo.cs`
-- **Parser**: `src/Modules/Identity/HRM.Modules.Identity.Infrastructure/Services/PermissionTemplateParser.cs`
+- **Permission Catalog**: `templates/permissions/PermissionCatalog.xml`
+- **Catalog Service Interface**: `src/Modules/Identity/HRM.Modules.Identity.Domain/Services/IPermissionCatalogService.cs`
+- **Catalog Service Implementation**: `src/Modules/Identity/HRM.Modules.Identity.Infrastructure/Services/PermissionCatalogService.cs`
+- **Value Objects**: `src/Modules/Identity/HRM.Modules.Identity.Domain/ValueObjects/`
+  - `PermissionModule.cs`
+  - `PermissionEntity.cs`
+  - `PermissionAction.cs`
+  - `PermissionScope.cs`
+  - `PermissionConstraint.cs`
+
+## Migration from Template System
+
+If migrating from the old Permission Template system:
+
+1. All templates (SystemAdministrator.xml, HRManager.xml, etc.) have been consolidated into PermissionCatalog.xml
+2. Template metadata (Name, Version, ApplicableTo) is no longer needed
+3. Roles are now created and managed in the database
+4. Admin selects permissions from catalog via UI instead of XML files
 
 ## Next Steps
 
-1. **Database Schema**: Create tables for storing templates
-2. **User Assignments**: Link users/operators to templates
-3. **Runtime Evaluator**: Implement constraint evaluation
-4. **API Endpoints**: CRUD operations for templates
-5. **UI Components**: Template builder and permission assignment screens
-6. **Migration Tool**: Import existing permissions to templates
+1. **API Endpoints**: Create endpoints to load catalog and manage roles
+2. **UI Components**: Build role management UI with catalog selection
+3. **Database Schema**: Tables for roles and role permissions
+4. **User Assignments**: Link users/operators to roles
+5. **Runtime Evaluator**: Implement constraint evaluation
+6. **Migration Tool**: Import existing role data if needed
