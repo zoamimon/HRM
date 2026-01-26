@@ -23,7 +23,7 @@ GO
 -- =============================================
 
 -- Check if admin operator already exists
-IF EXISTS (SELECT 1 FROM Identity.Operators WHERE Username = 'admin')
+IF EXISTS (SELECT 1 FROM [Identity].Operators WHERE Username = 'admin')
 BEGIN
     PRINT 'Admin operator already exists. Skipping seed.'
     RETURN
@@ -41,7 +41,7 @@ DECLARE @AdminId UNIQUEIDENTIFIER
 SET @AdminId = NEWID()
 
 -- Insert admin operator
-INSERT INTO Identity.Operators
+INSERT INTO [Identity].Operators
 (
     Id,
     Username,
@@ -88,7 +88,7 @@ VALUES
 GO
 
 -- Verify admin operator was created
-IF EXISTS (SELECT 1 FROM Identity.Operators WHERE Username = 'admin')
+IF EXISTS (SELECT 1 FROM [Identity].Operators WHERE Username = 'admin')
 BEGIN
     PRINT '================================='
     PRINT 'Admin operator created successfully'
@@ -123,7 +123,7 @@ BEGIN
         ActivatedAtUtc,
         IsTwoFactorEnabled,
         CreatedAtUtc
-    FROM Identity.Operators
+    FROM [Identity].Operators
     WHERE Username = 'admin'
 END
 ELSE

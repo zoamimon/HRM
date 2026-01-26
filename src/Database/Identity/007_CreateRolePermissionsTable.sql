@@ -18,7 +18,7 @@ GO
 -- =============================================
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'RolePermissions' AND schema_id = SCHEMA_ID('Identity'))
 BEGIN
-    CREATE TABLE Identity.RolePermissions
+    CREATE TABLE [Identity].RolePermissions
     (
         -- Composite Primary Key
         Id                  INT                 IDENTITY(1,1) NOT NULL,
@@ -35,16 +35,16 @@ BEGIN
         -- Constraints
         CONSTRAINT PK_Identity_RolePermissions PRIMARY KEY CLUSTERED (Id),
         CONSTRAINT FK_Identity_RolePermissions_Roles FOREIGN KEY (RoleId)
-            REFERENCES Identity.Roles (Id)
+            REFERENCES [Identity].Roles (Id)
             ON DELETE CASCADE,  -- Owned entity: delete permissions when role deleted
         CONSTRAINT UQ_Identity_RolePermissions_Unique UNIQUE (RoleId, Module, Entity, Action, Scope)
     )
 
-    PRINT 'Table Identity.RolePermissions created successfully'
+    PRINT 'Table [Identity].RolePermissions created successfully'
 END
 ELSE
 BEGIN
-    PRINT 'Table Identity.RolePermissions already exists'
+    PRINT 'Table [Identity].RolePermissions already exists'
 END
 GO
 
@@ -53,10 +53,10 @@ GO
 -- =============================================
 
 -- Index: Fast lookup by RoleId
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_RolePermissions_RoleId' AND object_id = OBJECT_ID('Identity.RolePermissions'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_RolePermissions_RoleId' AND object_id = OBJECT_ID('[Identity].RolePermissions'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Identity_RolePermissions_RoleId
-    ON Identity.RolePermissions (RoleId)
+    ON [Identity].RolePermissions (RoleId)
     INCLUDE (Module, Entity, Action, Scope)
 
     PRINT 'Index IX_Identity_RolePermissions_RoleId created'
@@ -64,10 +64,10 @@ END
 GO
 
 -- Index: Permission lookup (for checking if any role has specific permission)
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_RolePermissions_Permission' AND object_id = OBJECT_ID('Identity.RolePermissions'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_RolePermissions_Permission' AND object_id = OBJECT_ID('[Identity].RolePermissions'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Identity_RolePermissions_Permission
-    ON Identity.RolePermissions (Module, Entity, Action)
+    ON [Identity].RolePermissions (Module, Entity, Action)
     INCLUDE (RoleId, Scope)
 
     PRINT 'Index IX_Identity_RolePermissions_Permission created'

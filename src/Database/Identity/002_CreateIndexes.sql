@@ -9,24 +9,24 @@ USE HrmDb
 GO
 
 -- Drop existing indexes if they exist (for development only - remove in production)
-IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Username' AND object_id = OBJECT_ID('Identity.Operators'))
-    DROP INDEX IX_Operators_Username ON Identity.Operators
+IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Username' AND object_id = OBJECT_ID('[Identity].Operators'))
+    DROP INDEX IX_Operators_Username ON [Identity].Operators
 GO
 
-IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Email' AND object_id = OBJECT_ID('Identity.Operators'))
-    DROP INDEX IX_Operators_Email ON Identity.Operators
+IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Email' AND object_id = OBJECT_ID('[Identity].Operators'))
+    DROP INDEX IX_Operators_Email ON [Identity].Operators
 GO
 
-IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Status' AND object_id = OBJECT_ID('Identity.Operators'))
-    DROP INDEX IX_Operators_Status ON Identity.Operators
+IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_Status' AND object_id = OBJECT_ID('[Identity].Operators'))
+    DROP INDEX IX_Operators_Status ON [Identity].Operators
 GO
 
-IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_CreatedAtUtc' AND object_id = OBJECT_ID('Identity.Operators'))
-    DROP INDEX IX_Operators_CreatedAtUtc ON Identity.Operators
+IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_CreatedAtUtc' AND object_id = OBJECT_ID('[Identity].Operators'))
+    DROP INDEX IX_Operators_CreatedAtUtc ON [Identity].Operators
 GO
 
-IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_IsDeleted' AND object_id = OBJECT_ID('Identity.Operators'))
-    DROP INDEX IX_Operators_IsDeleted ON Identity.Operators
+IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Operators_IsDeleted' AND object_id = OBJECT_ID('[Identity].Operators'))
+    DROP INDEX IX_Operators_IsDeleted ON [Identity].Operators
 GO
 
 -- =============================================
@@ -37,7 +37,7 @@ GO
 -- Performance: Index Seek (O(log n))
 -- Includes: PasswordHash, Status, IsDeleted (avoid key lookups)
 CREATE UNIQUE NONCLUSTERED INDEX IX_Operators_Username
-ON Identity.Operators (Username)
+ON [Identity].Operators (Username)
 INCLUDE (PasswordHash, Status, IsDeleted, FailedLoginAttempts, LockedUntilUtc)
 WHERE IsDeleted = 0
 GO
@@ -52,7 +52,7 @@ GO
 -- Use Case: Registration validation, forgot password
 -- Performance: Index Seek (O(log n))
 CREATE UNIQUE NONCLUSTERED INDEX IX_Operators_Email
-ON Identity.Operators (Email)
+ON [Identity].Operators (Email)
 INCLUDE (Id, Username, FullName)
 WHERE IsDeleted = 0
 GO
@@ -68,7 +68,7 @@ GO
 -- Performance: Index Seek + Range Scan
 -- Example Query: SELECT * FROM Operators WHERE Status = 0 (Pending)
 CREATE NONCLUSTERED INDEX IX_Operators_Status
-ON Identity.Operators (Status, CreatedAtUtc DESC)
+ON [Identity].Operators (Status, CreatedAtUtc DESC)
 INCLUDE (Id, Username, Email, FullName)
 WHERE IsDeleted = 0
 GO
@@ -84,7 +84,7 @@ GO
 -- Performance: Index Scan (already sorted)
 -- Example Query: SELECT * FROM Operators ORDER BY CreatedAtUtc DESC OFFSET 20 ROWS FETCH NEXT 20 ROWS ONLY
 CREATE NONCLUSTERED INDEX IX_Operators_CreatedAtUtc
-ON Identity.Operators (CreatedAtUtc DESC)
+ON [Identity].Operators (CreatedAtUtc DESC)
 INCLUDE (Id, Username, Email, FullName, Status)
 WHERE IsDeleted = 0
 GO
@@ -100,7 +100,7 @@ GO
 -- Performance: Index Seek
 -- Note: Most queries use WHERE IsDeleted = 0 (filtered indexes above)
 CREATE NONCLUSTERED INDEX IX_Operators_IsDeleted
-ON Identity.Operators (IsDeleted, DeletedAtUtc DESC)
+ON [Identity].Operators (IsDeleted, DeletedAtUtc DESC)
 INCLUDE (Id, Username, Email, FullName)
 GO
 
@@ -111,7 +111,7 @@ GO
 -- Index Statistics and Analysis
 -- =============================================
 -- Update statistics for accurate query plans
-UPDATE STATISTICS Identity.Operators
+UPDATE STATISTICS [Identity].Operators
 GO
 
 -- Display index information
@@ -125,7 +125,7 @@ FROM sys.indexes i
 INNER JOIN sys.dm_db_partition_stats s
     ON i.object_id = s.object_id
     AND i.index_id = s.index_id
-WHERE i.object_id = OBJECT_ID('Identity.Operators')
+WHERE i.object_id = OBJECT_ID('[Identity].Operators')
 GROUP BY i.name, i.type_desc, i.is_unique, i.fill_factor
 ORDER BY i.name
 GO

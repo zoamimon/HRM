@@ -13,7 +13,7 @@ GO
 -- =============================================
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Roles' AND schema_id = SCHEMA_ID('Identity'))
 BEGIN
-    CREATE TABLE Identity.Roles
+    CREATE TABLE [Identity].Roles
     (
         -- Primary Key
         Id                  UNIQUEIDENTIFIER    NOT NULL,
@@ -38,11 +38,11 @@ BEGIN
         CONSTRAINT UQ_Identity_Roles_Name UNIQUE (Name)
     )
 
-    PRINT 'Table Identity.Roles created successfully'
+    PRINT 'Table [Identity].Roles created successfully'
 END
 ELSE
 BEGIN
-    PRINT 'Table Identity.Roles already exists'
+    PRINT 'Table [Identity].Roles already exists'
 END
 GO
 
@@ -51,10 +51,10 @@ GO
 -- =============================================
 
 -- Index: Filter by IsOperatorRole
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_Roles_IsOperatorRole' AND object_id = OBJECT_ID('Identity.Roles'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_Roles_IsOperatorRole' AND object_id = OBJECT_ID('[Identity].Roles'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Identity_Roles_IsOperatorRole
-    ON Identity.Roles (IsOperatorRole)
+    ON [Identity].Roles (IsOperatorRole)
     WHERE IsDeleted = 0
 
     PRINT 'Index IX_Identity_Roles_IsOperatorRole created'
@@ -62,10 +62,10 @@ END
 GO
 
 -- Index: Filter by IsDeleted for soft delete queries
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_Roles_IsDeleted' AND object_id = OBJECT_ID('Identity.Roles'))
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Identity_Roles_IsDeleted' AND object_id = OBJECT_ID('[Identity].Roles'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Identity_Roles_IsDeleted
-    ON Identity.Roles (IsDeleted)
+    ON [Identity].Roles (IsDeleted)
     INCLUDE (Name, IsOperatorRole)
 
     PRINT 'Index IX_Identity_Roles_IsDeleted created'

@@ -41,10 +41,10 @@ public sealed class OperatorPermissionRepository : IOperatorPermissionRepository
         const string sql = """
             SELECT DISTINCT
                 rp.Module + '.' + rp.Entity + '.' + rp.Action AS PermissionKey
-            FROM Identity.Operators o
-            INNER JOIN Identity.OperatorRoles opr ON o.Id = opr.OperatorId
-            INNER JOIN Identity.Roles r ON opr.RoleId = r.Id
-            INNER JOIN Identity.RolePermissions rp ON r.Id = rp.RoleId
+            FROM [Identity].Operators o
+            INNER JOIN [Identity].OperatorRoles opr ON o.Id = opr.OperatorId
+            INNER JOIN [Identity].Roles r ON opr.RoleId = r.Id
+            INNER JOIN [Identity].RolePermissions rp ON r.Id = rp.RoleId
             WHERE o.Id = @OperatorId
               AND o.IsDeleted = 0
               AND o.Status = 1  -- Active status
@@ -73,9 +73,9 @@ public sealed class OperatorPermissionRepository : IOperatorPermissionRepository
         const string sql = """
             SELECT CASE WHEN EXISTS (
                 SELECT 1
-                FROM Identity.Operators o
-                INNER JOIN Identity.OperatorRoles opr ON o.Id = opr.OperatorId
-                INNER JOIN Identity.Roles r ON opr.RoleId = r.Id
+                FROM [Identity].Operators o
+                INNER JOIN [Identity].OperatorRoles opr ON o.Id = opr.OperatorId
+                INNER JOIN [Identity].Roles r ON opr.RoleId = r.Id
                 WHERE o.Id = @OperatorId
                   AND o.IsDeleted = 0
                   AND o.Status = 1  -- Active status
@@ -109,10 +109,10 @@ public sealed class OperatorPermissionRepository : IOperatorPermissionRepository
         const string sql = """
             SELECT CASE WHEN EXISTS (
                 SELECT 1
-                FROM Identity.Operators o
-                INNER JOIN Identity.OperatorRoles opr ON o.Id = opr.OperatorId
-                INNER JOIN Identity.Roles r ON opr.RoleId = r.Id
-                INNER JOIN Identity.RolePermissions rp ON r.Id = rp.RoleId
+                FROM [Identity].Operators o
+                INNER JOIN [Identity].OperatorRoles opr ON o.Id = opr.OperatorId
+                INNER JOIN [Identity].Roles r ON opr.RoleId = r.Id
+                INNER JOIN [Identity].RolePermissions rp ON r.Id = rp.RoleId
                 WHERE o.Id = @OperatorId
                   AND o.IsDeleted = 0
                   AND o.Status = 1  -- Active status

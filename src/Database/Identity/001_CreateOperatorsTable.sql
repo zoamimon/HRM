@@ -18,15 +18,15 @@ END
 GO
 
 -- Drop table if exists (for development only - remove in production)
-IF OBJECT_ID('Identity.Operators', 'U') IS NOT NULL
+IF OBJECT_ID('[Identity].Operators', 'U') IS NOT NULL
 BEGIN
-    DROP TABLE Identity.Operators
+    DROP TABLE [Identity].Operators
     PRINT 'Table [Identity].[Operators] dropped'
 END
 GO
 
 -- Create Operators table
-CREATE TABLE Identity.Operators
+CREATE TABLE [Identity].Operators
 (
     -- Primary Key
     Id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),

@@ -20,13 +20,13 @@ DECLARE @AdminRoleDescription NVARCHAR(500) = 'Full system access. Reserved for 
 DECLARE @AdminRoleId UNIQUEIDENTIFIER
 
 -- Check if role already exists
-SELECT @AdminRoleId = Id FROM Identity.Roles WHERE Name = @AdminRoleName AND IsDeleted = 0
+SELECT @AdminRoleId = Id FROM [Identity].Roles WHERE Name = @AdminRoleName AND IsDeleted = 0
 
 IF @AdminRoleId IS NULL
 BEGIN
     SET @AdminRoleId = NEWID()
 
-    INSERT INTO Identity.Roles
+    INSERT INTO [Identity].Roles
     (
         Id,
         Name,
@@ -69,18 +69,18 @@ GO
 -- =============================================
 
 DECLARE @AdminRoleId UNIQUEIDENTIFIER
-SELECT @AdminRoleId = Id FROM Identity.Roles WHERE Name = 'System Administrator' AND IsDeleted = 0
+SELECT @AdminRoleId = Id FROM [Identity].Roles WHERE Name = 'System Administrator' AND IsDeleted = 0
 
 IF @AdminRoleId IS NOT NULL
 BEGIN
     -- Clear existing permissions (for re-seeding)
-    DELETE FROM Identity.RolePermissions WHERE RoleId = @AdminRoleId
+    DELETE FROM [Identity].RolePermissions WHERE RoleId = @AdminRoleId
 
     -- =============================================
     -- Identity Module Permissions
     -- =============================================
     -- User Entity
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Identity', 'User', 'View', NULL),
         (@AdminRoleId, 'Identity', 'User', 'Create', NULL),
         (@AdminRoleId, 'Identity', 'User', 'Update', NULL),
@@ -89,7 +89,7 @@ BEGIN
         (@AdminRoleId, 'Identity', 'User', 'AssignPermission', NULL)
 
     -- Operator Entity
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Identity', 'Operator', 'View', NULL),
         (@AdminRoleId, 'Identity', 'Operator', 'Create', NULL),
         (@AdminRoleId, 'Identity', 'Operator', 'Update', NULL),
@@ -98,7 +98,7 @@ BEGIN
         (@AdminRoleId, 'Identity', 'Operator', 'AssignPermission', NULL)
 
     -- Role Entity
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Identity', 'Role', 'View', NULL),
         (@AdminRoleId, 'Identity', 'Role', 'Create', NULL),
         (@AdminRoleId, 'Identity', 'Role', 'Update', NULL),
@@ -113,7 +113,7 @@ BEGIN
     -- Uncomment when Personnel module is implemented
     /*
     -- Employee Entity
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Personnel', 'Employee', 'View', NULL),
         (@AdminRoleId, 'Personnel', 'Employee', 'Create', NULL),
         (@AdminRoleId, 'Personnel', 'Employee', 'Update', NULL),
@@ -121,7 +121,7 @@ BEGIN
         (@AdminRoleId, 'Personnel', 'Employee', 'Export', NULL)
 
     -- Contract Entity
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Personnel', 'Contract', 'View', NULL),
         (@AdminRoleId, 'Personnel', 'Contract', 'Create', NULL),
         (@AdminRoleId, 'Personnel', 'Contract', 'Update', NULL),
@@ -135,7 +135,7 @@ BEGIN
     -- Attendance Module Permissions (Future)
     -- =============================================
     /*
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'Attendance', 'Timesheet', 'View', NULL),
         (@AdminRoleId, 'Attendance', 'Timesheet', 'Create', NULL),
         (@AdminRoleId, 'Attendance', 'Timesheet', 'Update', NULL),
@@ -149,7 +149,7 @@ BEGIN
     -- System Module Permissions (Future)
     -- =============================================
     /*
-    INSERT INTO Identity.RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
+    INSERT INTO [Identity].RolePermissions (RoleId, Module, Entity, Action, Scope) VALUES
         (@AdminRoleId, 'System', 'Configuration', 'View', NULL),
         (@AdminRoleId, 'System', 'Configuration', 'Update', NULL),
         (@AdminRoleId, 'System', 'AuditLog', 'View', NULL),
@@ -160,7 +160,7 @@ BEGIN
 
     -- Count total permissions
     DECLARE @TotalPermissions INT
-    SELECT @TotalPermissions = COUNT(*) FROM Identity.RolePermissions WHERE RoleId = @AdminRoleId
+    SELECT @TotalPermissions = COUNT(*) FROM [Identity].RolePermissions WHERE RoleId = @AdminRoleId
     PRINT 'Total permissions for System Administrator: ' + CAST(@TotalPermissions AS NVARCHAR(10))
 END
 GO
@@ -171,15 +171,15 @@ GO
 DECLARE @AdminOperatorId UNIQUEIDENTIFIER
 DECLARE @AdminRoleId UNIQUEIDENTIFIER
 
-SELECT @AdminOperatorId = Id FROM Identity.Operators WHERE Username = 'admin' AND IsDeleted = 0
-SELECT @AdminRoleId = Id FROM Identity.Roles WHERE Name = 'System Administrator' AND IsDeleted = 0
+SELECT @AdminOperatorId = Id FROM [Identity].Operators WHERE Username = 'admin' AND IsDeleted = 0
+SELECT @AdminRoleId = Id FROM [Identity].Roles WHERE Name = 'System Administrator' AND IsDeleted = 0
 
 IF @AdminOperatorId IS NOT NULL AND @AdminRoleId IS NOT NULL
 BEGIN
     -- Check if already assigned
-    IF NOT EXISTS (SELECT 1 FROM Identity.OperatorRoles WHERE OperatorId = @AdminOperatorId AND RoleId = @AdminRoleId)
+    IF NOT EXISTS (SELECT 1 FROM [Identity].OperatorRoles WHERE OperatorId = @AdminOperatorId AND RoleId = @AdminRoleId)
     BEGIN
-        INSERT INTO Identity.OperatorRoles (OperatorId, RoleId, AssignedAtUtc, AssignedById)
+        INSERT INTO [Identity].OperatorRoles (OperatorId, RoleId, AssignedAtUtc, AssignedById)
         VALUES (@AdminOperatorId, @AdminRoleId, GETUTCDATE(), NULL)
 
         PRINT 'System Administrator role assigned to admin operator'
@@ -211,8 +211,8 @@ SELECT
     r.Description,
     r.IsOperatorRole,
     COUNT(rp.Id) AS PermissionCount
-FROM Identity.Roles r
-LEFT JOIN Identity.RolePermissions rp ON r.Id = rp.RoleId
+FROM [Identity].Roles r
+LEFT JOIN [Identity].RolePermissions rp ON r.Id = rp.RoleId
 WHERE r.Name = 'System Administrator' AND r.IsDeleted = 0
 GROUP BY r.Id, r.Name, r.Description, r.IsOperatorRole
 
@@ -221,8 +221,8 @@ PRINT 'Permissions by Module:'
 SELECT
     rp.Module,
     COUNT(*) AS PermissionCount
-FROM Identity.RolePermissions rp
-INNER JOIN Identity.Roles r ON rp.RoleId = r.Id
+FROM [Identity].RolePermissions rp
+INNER JOIN [Identity].Roles r ON rp.RoleId = r.Id
 WHERE r.Name = 'System Administrator' AND r.IsDeleted = 0
 GROUP BY rp.Module
 ORDER BY rp.Module
@@ -234,9 +234,9 @@ SELECT
     o.Email,
     r.Name AS RoleName,
     opr.AssignedAtUtc
-FROM Identity.Operators o
-INNER JOIN Identity.OperatorRoles opr ON o.Id = opr.OperatorId
-INNER JOIN Identity.Roles r ON opr.RoleId = r.Id
+FROM [Identity].Operators o
+INNER JOIN [Identity].OperatorRoles opr ON o.Id = opr.OperatorId
+INNER JOIN [Identity].Roles r ON opr.RoleId = r.Id
 WHERE o.Username = 'admin' AND o.IsDeleted = 0
 GO
 
