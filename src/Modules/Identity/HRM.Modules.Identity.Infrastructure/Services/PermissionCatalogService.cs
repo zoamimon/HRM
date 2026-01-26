@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using HRM.BuildingBlocks.Domain.Abstractions.Permissions;
 using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Domain.Services;
@@ -9,30 +10,36 @@ namespace HRM.Modules.Identity.Infrastructure.Services;
 
 /// <summary>
 /// Implementation of IPermissionCatalogService
-/// Loads permission catalog from XML file
-/// Uses in-memory caching to avoid repeated file I/O
+/// Aggregates permission catalogs from multiple sources (modules)
 ///
 /// Design Philosophy:
-/// - Permission Catalog defines ALL available permissions in system
-/// - Admin selects from catalog via UI and saves to DB
-/// - No validation needed - permissions come from predefined catalog
-/// - Catalog is read-only and loaded once at startup
+/// - Each module provides its own IPermissionCatalogSource
+/// - This service collects and aggregates all sources
+/// - Uses in-memory caching to avoid repeated parsing
+/// - Catalog is read-only, loaded once at startup
+///
+/// Factory Pattern:
+/// - Modules use IPermissionCatalogSourceFactory to create sources
+/// - Sources are registered in DI as IPermissionCatalogSource
+/// - This service receives IEnumerable&lt;IPermissionCatalogSource&gt;
 /// </summary>
 public sealed class PermissionCatalogService : IPermissionCatalogService
 {
     private const string XmlNamespace = "http://hrm.system/permissions";
     private const string CatalogCacheKey = "PermissionCatalog";
-    private readonly string _catalogFilePath;
+    private readonly IEnumerable<IPermissionCatalogSource> _sources;
     private readonly IMemoryCache _cache;
 
-    public PermissionCatalogService(IMemoryCache cache, string catalogFilePath = "templates/permissions/PermissionCatalog.xml")
+    public PermissionCatalogService(
+        IEnumerable<IPermissionCatalogSource> sources,
+        IMemoryCache cache)
     {
-        _cache = cache;
-        _catalogFilePath = catalogFilePath;
+        _sources = sources ?? throw new ArgumentNullException(nameof(sources));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
 
     /// <summary>
-    /// Load all available permissions from the catalog
+    /// Load all available permissions from all catalog sources
     /// Uses in-memory cache to avoid repeated parsing
     /// </summary>
     public async Task<List<PermissionModule>> LoadCatalogAsync()
@@ -43,19 +50,42 @@ public sealed class PermissionCatalogService : IPermissionCatalogService
             return cachedModules;
         }
 
-        // Load from file
-        if (!File.Exists(_catalogFilePath))
+        // Load from all sources
+        var allModules = new List<PermissionModule>();
+
+        foreach (var source in _sources)
         {
-            throw new FileNotFoundException($"Permission catalog not found at: {_catalogFilePath}");
+            try
+            {
+                var xmlContent = await source.LoadContentAsync();
+                var modules = ParseCatalog(xmlContent);
+                allModules.AddRange(modules);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to load permission catalog from source '{source.ModuleName}': {ex.Message}",
+                    ex);
+            }
         }
 
-        var xmlContent = await File.ReadAllTextAsync(_catalogFilePath);
-        var modules = await ParseCatalogAsync(xmlContent);
+        // Validate no duplicate module names
+        var duplicateModules = allModules
+            .GroupBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateModules.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Duplicate module names found in permission catalogs: {string.Join(", ", duplicateModules)}");
+        }
 
         // Cache for 1 hour (catalog rarely changes)
-        _cache.Set(CatalogCacheKey, modules, TimeSpan.FromHours(1));
+        _cache.Set(CatalogCacheKey, allModules, TimeSpan.FromHours(1));
 
-        return modules;
+        return allModules;
     }
 
     /// <summary>
@@ -98,9 +128,8 @@ public sealed class PermissionCatalogService : IPermissionCatalogService
 
     /// <summary>
     /// Parse catalog XML content to permission modules
-    /// Similar to PermissionTemplateParser but without metadata parsing
     /// </summary>
-    private async Task<List<PermissionModule>> ParseCatalogAsync(string xmlContent)
+    private List<PermissionModule> ParseCatalog(string xmlContent)
     {
         if (string.IsNullOrWhiteSpace(xmlContent))
         {
@@ -109,22 +138,17 @@ public sealed class PermissionCatalogService : IPermissionCatalogService
 
         try
         {
-            // Parse XML document
             var doc = XDocument.Parse(xmlContent);
             var root = doc.Root ?? throw new InvalidOperationException("XML document has no root element");
 
-            // Get namespace
             XNamespace ns = root.GetDefaultNamespace();
 
-            // Parse permissions (no metadata in catalog)
             var permissionsElement = root.Element(ns + "Permissions")
                 ?? throw new InvalidOperationException("Permissions element is required");
 
-            var modules = ParseModules(permissionsElement, ns);
-
-            return await Task.FromResult(modules);
+            return ParseModules(permissionsElement, ns);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException && ex is not ArgumentException)
         {
             throw new InvalidOperationException($"Failed to parse permission catalog: {ex.Message}", ex);
         }
@@ -239,7 +263,6 @@ public sealed class PermissionCatalogService : IPermissionCatalogService
             var readOnlyStr = scopeElement.Attribute("readOnly")?.Value;
             var readOnly = bool.TryParse(readOnlyStr, out var readOnlyValue) && readOnlyValue;
 
-            // Map string to ScopeLevel enum
             ScopeLevel scopeLevel = scopeValue switch
             {
                 "Company" => ScopeLevel.Company,

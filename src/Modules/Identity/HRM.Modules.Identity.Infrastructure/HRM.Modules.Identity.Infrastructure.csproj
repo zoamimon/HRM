@@ -19,6 +19,9 @@
 
     <!-- Hosting for Background Services -->
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+
+    <!-- Memory Cache for Permission Catalog -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
