@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.Extensions;
 using HRM.Modules.Identity.Api.Contracts;
 using HRM.Modules.Identity.Application.Commands.ActivateOperator;
@@ -66,10 +67,12 @@ public static class OperatorEndpoints
             .RequireAuthorization(); // All endpoints require authentication
 
         // 1. Register operator
+        // Permission: Identity.Operator.Create
         group.MapPost("/register", RegisterOperator)
             .WithName("RegisterOperator")
             .WithSummary("Register a new operator")
-            .WithDescription("Create a new operator account in Pending status. Admin-only operation.")
+            .WithDescription("Create a new operator account in Pending status. Requires Identity.Operator.Create permission.")
+            .RequireAuthorization(new HasPermissionAttribute("Identity", "Operator", "Create"))
             .Produces<OperatorResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -77,10 +80,12 @@ public static class OperatorEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         // 2. Activate operator
+        // Permission: Identity.Operator.Update
         group.MapPost("/{id:guid}/activate", ActivateOperator)
             .WithName("ActivateOperator")
             .WithSummary("Activate a pending operator")
-            .WithDescription("Change operator status from Pending to Active. Admin-only operation.")
+            .WithDescription("Change operator status from Pending to Active. Requires Identity.Operator.Update permission.")
+            .RequireAuthorization(new HasPermissionAttribute("Identity", "Operator", "Update"))
             .Produces<OperatorResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
