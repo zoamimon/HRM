@@ -26,6 +26,11 @@
     <File Path="src/Database/Identity/002_CreateIndexes.sql" />
     <File Path="src/Database/Identity/003_SeedAdminOperator.sql" />
     <File Path="src/Database/Identity/004_CreateRefreshTokensTable.sql" />
+    <File Path="src/Database/Identity/005_MigrateRefreshTokensToPolymorphic.sql" />
+    <File Path="src/Database/Identity/006_CreateRolesTable.sql" />
+    <File Path="src/Database/Identity/007_CreateRolePermissionsTable.sql" />
+    <File Path="src/Database/Identity/008_CreateOperatorRolesTable.sql" />
+    <File Path="src/Database/Identity/009_SeedAdminRoleAndPermissions.sql" />
     <File Path="src/Database/Identity/README.md" />
   </Folder>
 </Solution>
