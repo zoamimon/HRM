@@ -1,4 +1,6 @@
+using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Permissions;
+using HRM.Modules.Identity.Application;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Domain.Repositories;
@@ -133,13 +135,21 @@ public static class IdentityInfrastructureExtensions
         services.AddSingleton<IPermissionCatalogSourceFactory, PermissionCatalogSourceFactory>();
         services.AddSingleton<IPermissionCatalogService, PermissionCatalogService>();
 
-        // Register Identity module's catalog source (from file)
-        // Other modules register their sources using the factory
+        // Register Identity module's catalog source (from embedded resource)
+        // Each module registers its own catalog source using the factory
+        // Resource name: {Namespace}.Resources.PermissionCatalog.xml
         services.AddSingleton<IPermissionCatalogSource>(sp =>
         {
             var factory = sp.GetRequiredService<IPermissionCatalogSourceFactory>();
-            return factory.FromFile("templates/permissions/PermissionCatalog.xml");
+            return factory.FromEmbeddedResource(
+                typeof(IdentityApplicationAssemblyMarker).Assembly,
+                "HRM.Modules.Identity.Application.Resources.PermissionCatalog.xml");
         });
+
+        // 6. Register Authorization Services
+        // IPermissionService: Checks user permissions for authorization
+        // Scoped: Uses scoped repositories for database access
+        services.AddScoped<IPermissionService, PermissionService>();
 
         return services;
     }

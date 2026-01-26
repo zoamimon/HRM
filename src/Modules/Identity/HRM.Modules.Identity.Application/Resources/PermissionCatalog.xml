@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionCatalog xmlns="http://hrm.system/permissions">
+  <!--
+    Identity Module Permission Catalog
+    Defines all permissions for identity management (users, operators, roles)
+
+    This file is embedded as a resource and loaded via IPermissionCatalogSourceFactory
+  -->
+
+  <Permissions>
+
+    <!-- Identity Module - Quản lý danh tính -->
+    <Module name="Identity" displayName="Quản lý danh tính">
+
+      <!-- User Entity -->
+      <Entity name="User" displayName="Người dùng">
+
+        <Action name="View" displayName="Xem người dùng">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+            <Scope value="Self" displayName="Chỉ bản thân" />
+          </Scopes>
+        </Action>
+
+        <Action name="Create" displayName="Tạo người dùng">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+          </Scopes>
+        </Action>
+
+        <Action name="Update" displayName="Cập nhật người dùng">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+            <Scope value="Self" displayName="Chỉ bản thân" />
+          </Scopes>
+        </Action>
+
+        <Action name="Delete" displayName="Xóa người dùng">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+          </Scopes>
+        </Action>
+
+        <Action name="ResetPassword" displayName="Đặt lại mật khẩu">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+            <Scope value="Self" displayName="Chỉ bản thân" />
+          </Scopes>
+        </Action>
+
+        <Action name="AssignPermission" displayName="Gán quyền">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+            <Scope value="Department" displayName="Cùng phòng ban" />
+          </Scopes>
+        </Action>
+
+      </Entity>
+
+      <!-- Operator Entity -->
+      <Entity name="Operator" displayName="Quản trị viên">
+
+        <Action name="View" displayName="Xem quản trị viên" />
+
+        <Action name="Create" displayName="Tạo quản trị viên" />
+
+        <Action name="Update" displayName="Cập nhật quản trị viên" />
+
+        <Action name="Delete" displayName="Xóa quản trị viên" />
+
+        <Action name="ResetPassword" displayName="Đặt lại mật khẩu" />
+
+        <Action name="AssignPermission" displayName="Gán quyền" />
+
+      </Entity>
+
+      <!-- Role Entity -->
+      <Entity name="Role" displayName="Vai trò">
+
+        <Action name="View" displayName="Xem vai trò">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+          </Scopes>
+        </Action>
+
+        <Action name="Create" displayName="Tạo vai trò">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+          </Scopes>
+        </Action>
+
+        <Action name="Update" displayName="Cập nhật vai trò">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+          </Scopes>
+        </Action>
+
+        <Action name="Delete" displayName="Xóa vai trò">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+          </Scopes>
+        </Action>
+
+        <Action name="AssignPermission" displayName="Gán quyền cho vai trò">
+          <Scopes>
+            <Scope value="Company" displayName="Toàn công ty" />
+          </Scopes>
+        </Action>
+
+      </Entity>
+
+    </Module>
+
+  </Permissions>
+
+</PermissionCatalog>
