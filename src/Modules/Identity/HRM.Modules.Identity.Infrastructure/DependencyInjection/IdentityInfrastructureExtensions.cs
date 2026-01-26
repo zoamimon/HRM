@@ -109,6 +109,9 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IOperatorRepository, OperatorRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
+        // Singleton: Dapper-based repository for permission queries (uses connection string directly)
+        services.AddSingleton<IOperatorPermissionRepository, OperatorPermissionRepository>();
+
         // 3. Register Authentication Services
         // Singleton: Stateless services, safe to share across requests
         // NOTE: These are Identity module-specific, used only for login/registration
