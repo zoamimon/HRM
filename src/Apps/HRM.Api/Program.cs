@@ -1,4 +1,5 @@
 using HRM.Api.DependencyInjection;
+using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,6 +64,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("User", policy =>
         policy.RequireAuthenticatedUser());
 });
+
+// Add Permission-based Authorization
+// - Registers PermissionPolicyProvider for dynamic policy creation
+// - Registers PermissionAuthorizationHandler for handling [HasPermission] attributes
+// - Policies are created on-demand from permission strings (e.g., "Permission:Identity.Operator.Create")
+builder.Services.AddPermissionAuthorization();
 
 // Register all HRM modules (BuildingBlocks + Identity + future modules)
 // This registers:
