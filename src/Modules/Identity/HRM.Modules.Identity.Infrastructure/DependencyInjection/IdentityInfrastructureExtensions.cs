@@ -2,6 +2,7 @@ using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Permissions;
 using HRM.Modules.Identity.Application;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Abstractions.Data;
 using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Domain.Repositories;
 using HRM.Modules.Identity.Domain.Services;
@@ -104,6 +105,12 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<HRM.BuildingBlocks.Domain.Abstractions.UnitOfWork.IModuleUnitOfWork>(
             sp => sp.GetRequiredService<IdentityDbContext>());
 
+        // Register IIdentityQueryContext - resolves to IdentityDbContext
+        // Query handlers in Application layer depend on this abstraction
+        // Keeps Application layer independent of Infrastructure (Dependency Inversion)
+        services.AddScoped<IIdentityQueryContext>(
+            sp => sp.GetRequiredService<IdentityDbContext>());
+
         // 2. Register Repositories
         // Scoped: One instance per HTTP request
         services.AddScoped<IOperatorRepository, OperatorRepository>();
@@ -153,15 +160,6 @@ public static class IdentityInfrastructureExtensions
         // IPermissionService: Checks user permissions for authorization
         // Scoped: Uses scoped repositories for database access
         services.AddScoped<IPermissionService, PermissionService>();
-
-        // 7. Register MediatR handlers from Infrastructure assembly
-        // Query handlers that need direct DbContext access are located here
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssembly(
-                typeof(IdentityInfrastructureExtensions).Assembly
-            );
-        });
 
         return services;
     }

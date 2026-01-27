@@ -1,5 +1,6 @@
 using System.Reflection;
 using HRM.BuildingBlocks.Infrastructure.Persistence;
+using HRM.Modules.Identity.Application.Abstractions.Data;
 using HRM.Modules.Identity.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,10 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence;
 /// - Soft delete query filters
 /// - Audit trail (CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById)
 /// - Outbox pattern (OutboxMessages table)
+///
+/// Implements IIdentityQueryContext for:
+/// - Dependency Inversion (Application layer depends on abstraction)
+/// - Query handlers can access DbSets without referencing Infrastructure
 ///
 /// Tables:
 /// - Identity.Operators: Operator accounts
@@ -43,7 +48,7 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence;
 /// - Used for distributed locking in OutboxProcessor
 /// - Format: "Identity" (matches schema name)
 /// </summary>
-public sealed class IdentityDbContext : ModuleDbContext
+public sealed class IdentityDbContext : ModuleDbContext, IIdentityQueryContext
 {
     public IdentityDbContext(
         DbContextOptions<IdentityDbContext> options,

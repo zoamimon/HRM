@@ -1,14 +1,13 @@
 using HRM.BuildingBlocks.Application.Abstractions.Queries;
 using HRM.BuildingBlocks.Application.Pagination;
-using HRM.Modules.Identity.Application.Queries.GetOperators;
-using HRM.Modules.Identity.Infrastructure.Persistence;
+using HRM.Modules.Identity.Application.Abstractions.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace HRM.Modules.Identity.Infrastructure.Queries;
+namespace HRM.Modules.Identity.Application.Queries.GetOperators;
 
 /// <summary>
 /// Handler for GetOperatorsQuery
-/// Located in Infrastructure layer because it requires direct IdentityDbContext access
+/// Returns paginated list of operators with search and filter support
 ///
 /// Query Logic:
 /// 1. Apply search filter (username or email contains search term)
@@ -22,22 +21,27 @@ namespace HRM.Modules.Identity.Infrastructure.Queries;
 /// - Projects directly to DTO (no entity materialization)
 /// - Two queries: COUNT for total, SELECT for page data
 /// - Indexed columns: Username, Email, Status, CreatedAtUtc
+///
+/// Architecture:
+/// - Handler in Application layer (Use Case)
+/// - Depends on IIdentityQueryContext (abstraction)
+/// - Implementation (IdentityDbContext) in Infrastructure
 /// </summary>
-internal sealed class GetOperatorsQueryHandler
+public sealed class GetOperatorsQueryHandler
     : IQueryHandler<GetOperatorsQuery, PagedResult<OperatorSummaryDto>>
 {
-    private readonly IdentityDbContext _dbContext;
+    private readonly IIdentityQueryContext _context;
 
-    public GetOperatorsQueryHandler(IdentityDbContext dbContext)
+    public GetOperatorsQueryHandler(IIdentityQueryContext context)
     {
-        _dbContext = dbContext;
+        _context = context;
     }
 
     public async Task<PagedResult<OperatorSummaryDto>> Handle(
         GetOperatorsQuery request,
         CancellationToken cancellationToken)
     {
-        var query = _dbContext.Operators.AsNoTracking();
+        var query = _context.Operators.AsNoTracking();
 
         // Apply search filter (username or email contains search term)
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
