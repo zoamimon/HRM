@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RouteSecurityMap Module="Identity" Version="1.0" xmlns="http://hrm.system/route-security">
+  <!--
+    Identity Module Route Security Map
+    Maps API routes to permissions and required scope levels
+
+    This file is loaded at startup and used by RoutePermissionMiddleware
+    to automatically protect routes without [Authorize] attributes.
+
+    Route Matching:
+    - Exact path match (case-insensitive)
+    - Path parameters use {param} syntax
+    - Method must match exactly (GET, POST, PUT, DELETE, PATCH)
+
+    MinScope:
+    - Minimum scope level required to access this route
+    - User's scope must be >= MinScope level
+    - If user has higher scope, they can access lower-scoped routes
+  -->
+
+  <!-- Public Routes - No authentication required -->
+  <PublicRoutes>
+    <!-- Authentication endpoints -->
+    <Route Method="POST" Path="/api/identity/auth/login" />
+    <Route Method="POST" Path="/api/identity/auth/refresh" />
+    <Route Method="GET" Path="/api/identity/auth/me" />
+
+    <!-- Health check -->
+    <Route Method="GET" Path="/health" />
+  </PublicRoutes>
+
+  <!-- Protected Routes - Require authentication and specific permissions -->
+  <ProtectedRoutes>
+
+    <!-- ==================== Operator Management ==================== -->
+
+    <!-- List operators (paginated) -->
+    <Route
+        Method="GET"
+        Path="/api/identity/operators"
+        Permission="Identity.Operator.View"
+        MinScope="Global" />
+
+    <!-- Get operator by ID -->
+    <Route
+        Method="GET"
+        Path="/api/identity/operators/{id}"
+        Permission="Identity.Operator.View"
+        MinScope="Global" />
+
+    <!-- Register new operator -->
+    <Route
+        Method="POST"
+        Path="/api/identity/operators/register"
+        Permission="Identity.Operator.Create"
+        MinScope="Global" />
+
+    <!-- Activate operator -->
+    <Route
+        Method="POST"
+        Path="/api/identity/operators/{id}/activate"
+        Permission="Identity.Operator.Update"
+        MinScope="Global" />
+
+    <!-- Update operator -->
+    <Route
+        Method="PUT"
+        Path="/api/identity/operators/{id}"
+        Permission="Identity.Operator.Update"
+        MinScope="Global" />
+
+    <!-- Delete operator -->
+    <Route
+        Method="DELETE"
+        Path="/api/identity/operators/{id}"
+        Permission="Identity.Operator.Delete"
+        MinScope="Global" />
+
+    <!-- Reset operator password -->
+    <Route
+        Method="POST"
+        Path="/api/identity/operators/{id}/reset-password"
+        Permission="Identity.Operator.ResetPassword"
+        MinScope="Global" />
+
+    <!-- Assign role to operator -->
+    <Route
+        Method="POST"
+        Path="/api/identity/operators/{id}/roles"
+        Permission="Identity.Operator.AssignRole"
+        MinScope="Global" />
+
+    <!-- ==================== Role Management ==================== -->
+
+    <!-- List roles -->
+    <Route
+        Method="GET"
+        Path="/api/identity/roles"
+        Permission="Identity.Role.View"
+        MinScope="Global" />
+
+    <!-- Get role by ID -->
+    <Route
+        Method="GET"
+        Path="/api/identity/roles/{id}"
+        Permission="Identity.Role.View"
+        MinScope="Global" />
+
+    <!-- Create role -->
+    <Route
+        Method="POST"
+        Path="/api/identity/roles"
+        Permission="Identity.Role.Create"
+        MinScope="Global" />
+
+    <!-- Update role -->
+    <Route
+        Method="PUT"
+        Path="/api/identity/roles/{id}"
+        Permission="Identity.Role.Update"
+        MinScope="Global" />
+
+    <!-- Delete role -->
+    <Route
+        Method="DELETE"
+        Path="/api/identity/roles/{id}"
+        Permission="Identity.Role.Delete"
+        MinScope="Global" />
+
+    <!-- Assign permissions to role -->
+    <Route
+        Method="POST"
+        Path="/api/identity/roles/{id}/permissions"
+        Permission="Identity.Role.AssignPermission"
+        MinScope="Global" />
+
+    <!-- ==================== Session Management ==================== -->
+
+    <!-- Get active sessions (user can view own sessions) -->
+    <Route
+        Method="GET"
+        Path="/api/identity/sessions"
+        Permission="Identity.User.View"
+        MinScope="Self" />
+
+    <!-- Revoke session -->
+    <Route
+        Method="DELETE"
+        Path="/api/identity/sessions/{id}"
+        Permission="Identity.User.Update"
+        MinScope="Self" />
+
+    <!-- Logout (revoke current session) -->
+    <Route
+        Method="POST"
+        Path="/api/identity/auth/logout"
+        Permission="Identity.User.Update"
+        MinScope="Self" />
+
+  </ProtectedRoutes>
+
+</RouteSecurityMap>

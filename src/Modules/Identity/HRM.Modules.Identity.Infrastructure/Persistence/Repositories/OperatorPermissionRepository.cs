@@ -134,4 +134,50 @@ public sealed class OperatorPermissionRepository : IOperatorPermissionRepository
 
         return result == 1;
     }
+
+    /// <summary>
+    /// Get all permissions with their scope levels for an operator
+    /// Returns dictionary of "Module.Entity.Action" -> Scope level
+    /// Takes the highest scope level when multiple roles grant the same permission
+    /// </summary>
+    public async Task<Dictionary<string, int>> GetPermissionsWithScopesAsync(
+        Guid operatorId,
+        CancellationToken cancellationToken = default)
+    {
+        // Query returns permission key and max scope level (highest wins)
+        // Scope levels: 4=Global, 3=Company, 2=Department, 1=Self
+        const string sql = """
+            SELECT
+                rp.Module + '.' + rp.Entity + '.' + rp.Action AS PermissionKey,
+                MAX(ISNULL(rp.Scope, 4)) AS ScopeLevel  -- Default to Global (4) if Scope is NULL
+            FROM [Identity].Operators o
+            INNER JOIN [Identity].OperatorRoles opr ON o.Id = opr.OperatorId
+            INNER JOIN [Identity].Roles r ON opr.RoleId = r.Id
+            INNER JOIN [Identity].RolePermissions rp ON r.Id = rp.RoleId
+            WHERE o.Id = @OperatorId
+              AND o.IsDeleted = 0
+              AND o.Status = 1  -- Active status
+              AND r.IsDeleted = 0
+            GROUP BY rp.Module, rp.Entity, rp.Action
+            """;
+
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var results = await connection.QueryAsync<PermissionScopeDto>(
+            new CommandDefinition(
+                sql,
+                new { OperatorId = operatorId },
+                cancellationToken: cancellationToken));
+
+        return results.ToDictionary(
+            r => r.PermissionKey,
+            r => r.ScopeLevel,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// DTO for permission scope query result
+    /// </summary>
+    private sealed record PermissionScopeDto(string PermissionKey, int ScopeLevel);
 }

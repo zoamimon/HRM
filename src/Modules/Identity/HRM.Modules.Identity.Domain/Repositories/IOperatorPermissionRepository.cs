@@ -57,4 +57,16 @@ public interface IOperatorPermissionRepository
         string entity,
         string action,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all permissions with their scope levels for an operator
+    /// Returns dictionary of "Module.Entity.Action" -> Scope level
+    /// Scope levels: 4=Global, 3=Company, 2=Department, 1=Self
+    /// </summary>
+    /// <param name="operatorId">Operator ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Dictionary of permission key to scope level</returns>
+    Task<Dictionary<string, int>> GetPermissionsWithScopesAsync(
+        Guid operatorId,
+        CancellationToken cancellationToken = default);
 }

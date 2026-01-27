@@ -4,10 +4,13 @@ using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
+using HRM.BuildingBlocks.Application.Abstractions.Security;
+using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
 using HRM.BuildingBlocks.Infrastructure.Http;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
+using HRM.BuildingBlocks.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -113,6 +116,15 @@ public static class InfrastructureServiceExtensions
         // EF Core Interceptors
         // NOTE: AuditInterceptor is Scoped because it depends on ICurrentUserService (Scoped)
         services.AddScoped<AuditInterceptor>();
+
+        // Route-based Security Services
+        // Singleton: RouteSecurityService maintains route security map in memory
+        // Modules register their RouteSecurityMap.xml via LoadFromEmbeddedResource
+        services.AddSingleton<IRouteSecurityService, RouteSecurityService>();
+
+        // Scoped: PermissionFilterService resolves IPermissionQueryFilter<T> from DI
+        // Used for data-level security filtering based on user's permission scope
+        services.AddScoped<IPermissionFilterService, PermissionFilterService>();
 
         return services;
     }

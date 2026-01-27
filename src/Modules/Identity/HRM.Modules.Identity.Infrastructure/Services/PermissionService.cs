@@ -1,4 +1,5 @@
 using HRM.BuildingBlocks.Application.Abstractions.Authorization;
+using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Repositories;
 using Microsoft.Extensions.Caching.Memory;
@@ -193,10 +194,168 @@ public sealed class PermissionService : IPermissionService
     {
         var permissionCacheKey = $"{PermissionCacheKeyPrefix}{userId}";
         var superAdminCacheKey = $"{SuperAdminCacheKeyPrefix}{userId}";
+        var permissionScopeCacheKey = $"{PermissionScopeCacheKeyPrefix}{userId}";
 
         _cache.Remove(permissionCacheKey);
         _cache.Remove(superAdminCacheKey);
+        _cache.Remove(permissionScopeCacheKey);
 
         _logger.LogInformation("Permission cache invalidated for user {UserId}", userId);
+    }
+
+    // ================================================================
+    // New methods for PermissionScope-based authorization
+    // ================================================================
+
+    private const string PermissionScopeCacheKeyPrefix = "UserPermissionScopes_";
+
+    /// <summary>
+    /// Check if user has permission with the specified key format
+    /// </summary>
+    public async Task<bool> HasPermissionAsync(
+        string userId,
+        string permissionKey,
+        CancellationToken cancellationToken = default)
+    {
+        // Parse permission key (Module.Entity.Action)
+        var parts = permissionKey.Split('.');
+        if (parts.Length != 3)
+        {
+            _logger.LogWarning("Invalid permission key format: {PermissionKey}", permissionKey);
+            return false;
+        }
+
+        return await HasPermissionAsync(userId, parts[0], parts[1], parts[2], cancellationToken);
+    }
+
+    /// <summary>
+    /// Check if user has permission with at least the specified scope level
+    /// </summary>
+    public async Task<bool> HasPermissionWithScopeAsync(
+        string userId,
+        string permissionKey,
+        PermissionScope minScope,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(userId))
+        {
+            return false;
+        }
+
+        // Super admin has Global scope for all permissions
+        if (await IsSuperAdminAsync(userId, cancellationToken))
+        {
+            _logger.LogDebug(
+                "Super admin bypass for user {UserId}, permission {PermissionKey}",
+                userId, permissionKey);
+            return true;
+        }
+
+        // Get user's scope for this permission
+        var userScope = await GetPermissionScopeAsync(userId, permissionKey, cancellationToken);
+
+        if (!userScope.HasValue)
+        {
+            _logger.LogDebug(
+                "User {UserId} does not have permission {PermissionKey}",
+                userId, permissionKey);
+            return false;
+        }
+
+        // Check if user's scope is >= required scope
+        var hasScope = (int)userScope.Value >= (int)minScope;
+
+        _logger.LogDebug(
+            "Scope check for user {UserId}: {PermissionKey} userScope={UserScope} >= minScope={MinScope} = {Result}",
+            userId, permissionKey, userScope.Value, minScope, hasScope);
+
+        return hasScope;
+    }
+
+    /// <summary>
+    /// Get user's scope for a specific permission key
+    /// </summary>
+    public async Task<PermissionScope?> GetPermissionScopeAsync(
+        string userId,
+        string permissionKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
+        {
+            return null;
+        }
+
+        // Super admin has Global scope
+        if (await IsSuperAdminAsync(userId, cancellationToken))
+        {
+            return PermissionScope.Global;
+        }
+
+        // Get all permissions with scopes (cached)
+        var permissionsWithScopes = await GetUserPermissionsWithScopesAsync(userId, cancellationToken);
+
+        if (permissionsWithScopes.TryGetValue(permissionKey, out var scope))
+        {
+            return scope;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Get all permissions with their scopes for a user
+    /// Uses caching for performance
+    /// </summary>
+    public async Task<Dictionary<string, PermissionScope>> GetUserPermissionsWithScopesAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
+        {
+            return new Dictionary<string, PermissionScope>();
+        }
+
+        var cacheKey = $"{PermissionScopeCacheKeyPrefix}{userId}";
+
+        // Try get from cache
+        if (_cache.TryGetValue<Dictionary<string, PermissionScope>>(cacheKey, out var cachedPermissions)
+            && cachedPermissions != null)
+        {
+            _logger.LogDebug("Cache hit for user {UserId} permission scopes", userId);
+            return cachedPermissions;
+        }
+
+        // Load from database
+        _logger.LogDebug("Cache miss for user {UserId} permission scopes, loading from database", userId);
+        var permissionsWithScopes = await _permissionRepository.GetPermissionsWithScopesAsync(
+            operatorId,
+            cancellationToken);
+
+        // Convert to PermissionScope enum
+        var result = new Dictionary<string, PermissionScope>();
+        foreach (var (key, scopeLevel) in permissionsWithScopes)
+        {
+            // Map database scope level to PermissionScope enum
+            // Database: 4=Global, 3=Company, 2=Department, 1=Self
+            var permissionScope = scopeLevel switch
+            {
+                4 => PermissionScope.Global,
+                3 => PermissionScope.Company,
+                2 => PermissionScope.Department,
+                1 => PermissionScope.Self,
+                _ => PermissionScope.Global // Default to Global for null/unknown
+            };
+            result[key] = permissionScope;
+        }
+
+        // Cache for future requests
+        _cache.Set(cacheKey, result, CacheDuration);
+
+        _logger.LogDebug(
+            "Loaded {Count} permissions with scopes for user {UserId}",
+            result.Count,
+            userId);
+
+        return result;
     }
 }

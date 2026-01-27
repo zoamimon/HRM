@@ -1,5 +1,6 @@
 using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Permissions;
+using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.Modules.Identity.Application;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Abstractions.Data;
@@ -161,6 +162,34 @@ public static class IdentityInfrastructureExtensions
         // Scoped: Uses scoped repositories for database access
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // 7. Load Route Security Map
+        // Load Identity module's RouteSecurityMap.xml into IRouteSecurityService
+        // This enables route-based permission checking via RoutePermissionMiddleware
+        LoadRouteSecurityMap(services);
+
         return services;
+    }
+
+    /// <summary>
+    /// Load RouteSecurityMap.xml from embedded resource into IRouteSecurityService
+    /// Called during service configuration to initialize route security
+    /// </summary>
+    private static void LoadRouteSecurityMap(IServiceCollection services)
+    {
+        // Build temporary provider to access IRouteSecurityService
+        var serviceProvider = services.BuildServiceProvider();
+        var routeSecurityService = serviceProvider.GetService<IRouteSecurityService>();
+
+        if (routeSecurityService == null)
+        {
+            // IRouteSecurityService not registered yet (should be registered by BuildingBlocks)
+            return;
+        }
+
+        // Load from embedded resource
+        var assembly = typeof(IdentityInfrastructureExtensions).Assembly;
+        var resourceName = "HRM.Modules.Identity.Infrastructure.Security.RouteSecurityMap.xml";
+
+        routeSecurityService.LoadFromEmbeddedResource(assembly, resourceName);
     }
 }
