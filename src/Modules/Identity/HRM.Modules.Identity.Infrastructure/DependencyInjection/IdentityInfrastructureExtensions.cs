@@ -154,6 +154,15 @@ public static class IdentityInfrastructureExtensions
         // Scoped: Uses scoped repositories for database access
         services.AddScoped<IPermissionService, PermissionService>();
 
+        // 7. Register MediatR handlers from Infrastructure assembly
+        // Query handlers that need direct DbContext access are located here
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssembly(
+                typeof(IdentityInfrastructureExtensions).Assembly
+            );
+        });
+
         return services;
     }
 }
