@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using HRM.Api.DependencyInjection;
 using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.DependencyInjection;
@@ -10,6 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add Controllers and Minimal API support
 builder.Services.AddEndpointsApiExplorer();
+
+// Configure JSON serialization options for Minimal APIs
+// - Serialize enums as strings (e.g., "Active" instead of 1)
+// - Use camelCase for property names
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Configure OpenAPI (.NET 10 Native - Minimal Approach)
 // Security is auto-detected from .RequireAuthorization() on endpoints
