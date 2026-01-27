@@ -1,6 +1,6 @@
 using HRM.BuildingBlocks.Application.Pagination;
-using HRM.BuildingBlocks.Domain.Enums;
 using HRM.BuildingBlocks.Infrastructure.Authorization;
+using HRM.Modules.Identity.Domain.Entities;
 using HRM.BuildingBlocks.Infrastructure.Extensions;
 using HRM.Modules.Identity.Api.Contracts;
 using HRM.Modules.Identity.Application.Commands.ActivateOperator;

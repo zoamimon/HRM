@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Entities;
 
 namespace HRM.Modules.Identity.Application.Queries.GetOperators;
 
