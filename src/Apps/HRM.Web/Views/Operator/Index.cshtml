@@ -1,0 +1,215 @@
+@model OperatorListViewModel
+
+@{
+    ViewData["Title"] = "Operators";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Operators</h2>
+    <a asp-action="Register" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Register New Operator
+    </a>
+</div>
+
+<!-- Search and Filter Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" name="searchTerm" value="@Model.SearchTerm" class="form-control" placeholder="Username or email..." />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    @foreach (var status in OperatorListViewModel.StatusOptions)
+                    {
+                        <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Page Size</label>
+                <select name="pageSize" class="form-select">
+                    <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                    <option value="20" selected="@(Model.PageSize == 20)">20</option>
+                    <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                    <option value="100" selected="@(Model.PageSize == 100)">100</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Operators Table -->
+<div class="card">
+    <div class="card-body">
+        @if (Model.Operators.Items.Count == 0)
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <p class="mt-3 text-muted">No operators found.</p>
+                @if (!string.IsNullOrEmpty(Model.SearchTerm) || !string.IsNullOrEmpty(Model.StatusFilter))
+                {
+                    <a asp-action="Index" class="btn btn-link">Clear filters</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Last Login</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var op in Model.Operators.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@op.Username</strong>
+                                </td>
+                                <td>@op.FullName</td>
+                                <td>
+                                    <a href="mailto:@op.Email">@op.Email</a>
+                                </td>
+                                <td>
+                                    @{
+                                        var badgeClass = op.Status switch
+                                        {
+                                            "Active" => "bg-success",
+                                            "Pending" => "bg-warning text-dark",
+                                            "Suspended" => "bg-danger",
+                                            "Deactivated" => "bg-secondary",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass">@op.Status</span>
+                                </td>
+                                <td>
+                                    <span title="@op.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC">
+                                        @op.CreatedAtUtc.ToString("yyyy-MM-dd")
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (op.LastLoginAtUtc.HasValue)
+                                    {
+                                        <span title="@op.LastLoginAtUtc.Value.ToString("yyyy-MM-dd HH:mm:ss") UTC">
+                                            @op.LastLoginAtUtc.Value.ToString("yyyy-MM-dd HH:mm")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Never</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Details" asp-route-id="@op.Id" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.Operators.TotalPages > 1)
+            {
+                <nav aria-label="Operator list pagination" class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted">
+                            Showing @(Model.Operators.Items.Count) of @Model.Operators.TotalCount operators
+                            (Page @Model.Operators.PageNumber of @Model.Operators.TotalPages)
+                        </div>
+                        <ul class="pagination mb-0">
+                            <!-- First Page -->
+                            <li class="page-item @(Model.Operators.HasPreviousPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-status="@Model.StatusFilter"
+                                   asp-route-pageNumber="1"
+                                   asp-route-pageSize="@Model.PageSize">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </a>
+                            </li>
+
+                            <!-- Previous Page -->
+                            <li class="page-item @(Model.Operators.HasPreviousPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-status="@Model.StatusFilter"
+                                   asp-route-pageNumber="@(Model.PageNumber - 1)"
+                                   asp-route-pageSize="@Model.PageSize">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+
+                            <!-- Page Numbers -->
+                            @{
+                                var startPage = Math.Max(1, Model.PageNumber - 2);
+                                var endPage = Math.Min(Model.Operators.TotalPages, Model.PageNumber + 2);
+                            }
+                            @for (int i = startPage; i <= endPage; i++)
+                            {
+                                <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                    <a class="page-link" asp-action="Index"
+                                       asp-route-searchTerm="@Model.SearchTerm"
+                                       asp-route-status="@Model.StatusFilter"
+                                       asp-route-pageNumber="@i"
+                                       asp-route-pageSize="@Model.PageSize">@i</a>
+                                </li>
+                            }
+
+                            <!-- Next Page -->
+                            <li class="page-item @(Model.Operators.HasNextPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-status="@Model.StatusFilter"
+                                   asp-route-pageNumber="@(Model.PageNumber + 1)"
+                                   asp-route-pageSize="@Model.PageSize">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+
+                            <!-- Last Page -->
+                            <li class="page-item @(Model.Operators.HasNextPage ? "" : "disabled")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-searchTerm="@Model.SearchTerm"
+                                   asp-route-status="@Model.StatusFilter"
+                                   asp-route-pageNumber="@Model.Operators.TotalPages"
+                                   asp-route-pageSize="@Model.PageSize">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            }
+            else
+            {
+                <div class="text-muted mt-3">
+                    Showing @(Model.Operators.Items.Count) of @Model.Operators.TotalCount operators
+                </div>
+            }
+        }
+    </div>
+</div>

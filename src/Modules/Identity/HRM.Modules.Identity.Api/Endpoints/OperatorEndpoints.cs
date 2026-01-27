@@ -1,8 +1,11 @@
+using HRM.BuildingBlocks.Application.Pagination;
+using HRM.BuildingBlocks.Domain.Enums;
 using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.Extensions;
 using HRM.Modules.Identity.Api.Contracts;
 using HRM.Modules.Identity.Application.Commands.ActivateOperator;
 using HRM.Modules.Identity.Application.Commands.RegisterOperator;
+using HRM.Modules.Identity.Application.Queries.GetOperators;
 using HRM.Modules.Identity.Domain.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -91,6 +94,17 @@ public static class OperatorEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // 3. Get operators (paginated list)
+        // Permission: Identity.Operator.View
+        group.MapGet("/", GetOperators)
+            .WithName("GetOperators")
+            .WithSummary("Get paginated list of operators")
+            .WithDescription("Retrieve operators with search, filter, and pagination. Requires Identity.Operator.View permission.")
+            .RequireAuthorization(new HasPermissionAttribute("Identity", "Operator", "View"))
+            .Produces<PagedResult<OperatorSummaryDto>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         return app;
     }
@@ -205,5 +219,38 @@ public static class OperatorEndpoints
         // Map error using ResultExtensions
         // This handles all DomainError types (NotFoundError, ValidationError, etc.)
         return result.ToHttpResult();
+    }
+
+    /// <summary>
+    /// GET /api/identity/operators
+    /// Get paginated list of operators with search and filter support.
+    /// </summary>
+    private static async Task<IResult> GetOperators(
+        ISender sender,
+        string? searchTerm = null,
+        OperatorStatus? status = null,
+        int pageNumber = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        // Validate pagination parameters
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        // Create query
+        var query = new GetOperatorsQuery
+        {
+            SearchTerm = searchTerm,
+            Status = status,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        // Execute query via MediatR
+        var result = await sender.Send(query, cancellationToken);
+
+        // Return paginated result
+        return Results.Ok(result);
     }
 }

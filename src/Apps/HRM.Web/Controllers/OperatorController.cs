@@ -24,6 +24,54 @@ public class OperatorController : Controller
     }
 
     /// <summary>
+    /// GET: /Operator or /Operator/Index
+    /// Display paginated list of operators with search and filter
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> Index(
+        string? searchTerm = null,
+        string? status = null,
+        int pageNumber = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        // Validate pagination parameters
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        // Call API to get operators
+        var response = await _apiClient.GetOperatorsAsync(
+            searchTerm,
+            status,
+            pageNumber,
+            pageSize,
+            cancellationToken);
+
+        var viewModel = new OperatorListViewModel
+        {
+            SearchTerm = searchTerm,
+            StatusFilter = status,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+
+        if (response.IsSuccess && response.Data != null)
+        {
+            viewModel.Operators = response.Data;
+        }
+        else
+        {
+            // Log error and show empty list with error message
+            _logger.LogError("Failed to get operators: {ErrorMessage}", response.ErrorMessage);
+            TempData["ErrorMessage"] = response.ErrorMessage ?? "Failed to load operators";
+            viewModel.Operators = new PagedResult<OperatorSummary>();
+        }
+
+        return View(viewModel);
+    }
+
+    /// <summary>
     /// GET: /Operator/Register
     /// Display the operator registration form
     /// </summary>
