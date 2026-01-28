@@ -104,7 +104,7 @@ public class OperatorController : Controller
         {
             // Success - redirect to success page or show success message
             TempData["SuccessMessage"] = $"Operator '{response.Data.Username}' registered successfully!";
-            TempData["OperatorId"] = response.Data.OperatorId;
+            TempData["OperatorId"] = response.Data.Id;
             return RedirectToAction(nameof(RegisterSuccess));
         }
 
