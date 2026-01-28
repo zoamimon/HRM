@@ -132,7 +132,7 @@ public sealed class RoutePermissionMiddleware
             userId, routeEntry.Permission, method, path);
 
         // 6. Store the user's scope in HttpContext for use by query filters
-        var userScope = await permissionService.GetPermissionScopeAsync(
+        var userScope = await permissionService.GetScopeLevelAsync(
             userId,
             routeEntry.Permission,
             context.RequestAborted);

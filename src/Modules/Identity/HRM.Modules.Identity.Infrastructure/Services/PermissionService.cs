@@ -275,7 +275,7 @@ public sealed class PermissionService : IPermissionService
     /// <summary>
     /// Get user's scope for a specific permission key
     /// </summary>
-    public async Task<ScopeLevel?> GetPermissionScopeAsync(
+    public async Task<ScopeLevel?> GetScopeLevelAsync(
         string userId,
         string permissionKey,
         CancellationToken cancellationToken = default)
