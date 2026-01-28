@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using HRM.Api.DependencyInjection;
 using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.DependencyInjection;
+using HRM.BuildingBlocks.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,8 +110,10 @@ app.UseCors("AllowFrontend");
 // IMPORTANT: Order matters!
 // 1. UseAuthentication() - validates JWT and populates HttpContext.User
 // 2. UseAuthorization() - checks [Authorize] attributes and policies
+// 3. UseRoutePermissions() - checks route-level permissions from RouteSecurityMap.xml
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRoutePermissions();
 
 // Map all module endpoints
 // - Identity: POST /api/identity/operators/register, POST /api/identity/operators/{id}/activate
