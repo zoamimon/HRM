@@ -1,4 +1,3 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Application.Abstractions.Authorization;
@@ -23,7 +22,7 @@ namespace HRM.BuildingBlocks.Application.Abstractions.Authorization;
 ///     userId, "Personnel", "Employee", "View");
 ///
 /// // Get user's scope for a permission
-/// var scope = await permissionService.GetPermissionScopeAsync(
+/// var scope = await permissionService.GetScopeLevelAsync(
 ///     userId, "Personnel", "Employee", "View");
 /// </code>
 /// </summary>
@@ -55,7 +54,7 @@ public interface IPermissionService
     /// <param name="action">Action name</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Scope level or null if no permission</returns>
-    Task<ScopeLevel?> GetPermissionScopeAsync(
+    Task<ScopeLevel?> GetScopeLevelAsync(
         string userId,
         string module,
         string entity,
@@ -106,7 +105,7 @@ public interface IPermissionService
     Task<bool> HasPermissionWithScopeAsync(
         string userId,
         string permissionKey,
-        PermissionScope minScope,
+        ScopeLevel minScope,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -115,8 +114,8 @@ public interface IPermissionService
     /// <param name="userId">User ID (Guid as string)</param>
     /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>PermissionScope or null if user doesn't have the permission</returns>
-    Task<PermissionScope?> GetPermissionScopeAsync(
+    /// <returns>ScopeLevel or null if user doesn't have the permission</returns>
+    Task<ScopeLevel?> GetScopeLevelAsync(
         string userId,
         string permissionKey,
         CancellationToken cancellationToken = default);
@@ -127,7 +126,7 @@ public interface IPermissionService
     /// <param name="userId">User ID (Guid as string)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Dictionary of permission key to scope</returns>
-    Task<Dictionary<string, PermissionScope>> GetUserPermissionsWithScopesAsync(
+    Task<Dictionary<string, ScopeLevel>> GetUserPermissionsWithScopesAsync(
         string userId,
         CancellationToken cancellationToken = default);
 }

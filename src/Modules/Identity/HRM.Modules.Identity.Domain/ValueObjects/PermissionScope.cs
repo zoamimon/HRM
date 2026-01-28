@@ -52,6 +52,14 @@ public sealed class PermissionScope
     }
 
     /// <summary>
+    /// Factory method: Global scope (Operators only)
+    /// </summary>
+    public static PermissionScope Global(string displayName = "Toàn hệ thống", bool isReadOnly = false)
+    {
+        return new PermissionScope(ScopeLevel.Global, displayName, isReadOnly);
+    }
+
+    /// <summary>
     /// Factory method: Company scope
     /// </summary>
     public static PermissionScope Company(string displayName = "Toàn công ty", bool isReadOnly = false)

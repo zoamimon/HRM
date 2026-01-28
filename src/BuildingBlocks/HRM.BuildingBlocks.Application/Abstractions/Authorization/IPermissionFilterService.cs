@@ -1,7 +1,8 @@
 using System.Linq.Expressions;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
+using HRM.BuildingBlocks.Domain.Enums;
 
-namespace HRM.BuildingBlocks.Application.Abstractions.Security;
+namespace HRM.BuildingBlocks.Application.Abstractions.Authorization;
 
 /// <summary>
 /// Service for applying permission-based query filters
@@ -45,7 +46,7 @@ public interface IPermissionFilterService
     PermissionFilterContext BuildContext(
         Guid userId,
         string permission,
-        PermissionScope scope,
+        ScopeLevel scope,
         Guid? departmentId = null,
         Guid? companyId = null);
 }

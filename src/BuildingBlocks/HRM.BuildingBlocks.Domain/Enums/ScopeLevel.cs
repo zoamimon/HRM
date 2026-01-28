@@ -1,27 +1,47 @@
 namespace HRM.BuildingBlocks.Domain.Enums;
 
 /// <summary>
-/// Defines the data visibility scope for employee users (UserType.User)
-/// Used for authorization and data filtering in queries
-/// Determines what data a user can see and manage
-/// 
+/// Defines the data visibility scope for authorization and data filtering
+/// Used for both Users (employee access) and Operators (permission scope)
+///
 /// Database Storage:
-/// - Stored as INT in Users table (1, 2, 3, 4)
-/// - Column: [identity].[Users].[ScopeLevel]
-/// 
+/// - Users table: [identity].[Users].[ScopeLevel] (1-4)
+/// - RolePermissions table: [identity].[RolePermissions].[Scope] (0-4)
+///
 /// JWT Token Usage:
 /// - Claim name: "ScopeLevel"
-/// - Claim value: "Company", "Department", "Position", or "Employee"
 /// - Used in data scoping service and authorization
-/// 
-/// Important Notes:
-/// - Does NOT apply to Operators (they have global access)
-/// - Only applies to Users (UserType.User)
-/// - Determined by position/role at user creation
-/// - Can be changed by System Admin (triggers session revoke)
+///
+/// Hierarchy (lower number = wider access):
+/// - Global (0): System-wide access (Operators only)
+/// - Company (1): Company-wide access
+/// - Department (2): Department-level access
+/// - Position (3): Position/Team-level access
+/// - Employee (4): Self-only access
+///
+/// Notes:
+/// - Global scope is only for Operators (system administrators)
+/// - Users (employees) typically have Company to Employee scope
 /// </summary>
 public enum ScopeLevel
 {
+    /// <summary>
+    /// Global/System-wide access (Operators only)
+    /// Can view and manage all data across all companies
+    ///
+    /// Who Gets This Level:
+    /// - System Administrators
+    /// - Super Users (Operators with "System Administrator" role)
+    ///
+    /// Data Access Rules:
+    /// ✅ All data in the entire system
+    /// ✅ All companies, departments, employees
+    /// ✅ System configuration and settings
+    ///
+    /// Note: This level is NOT available for regular Users
+    /// </summary>
+    Global = 0,
+
     /// <summary>
     /// Company-level access
     /// User can view and manage data within their assigned companies

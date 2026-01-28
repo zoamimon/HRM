@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
@@ -20,7 +21,7 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 ///     {
 ///         return context.Scope switch
 ///         {
-///             PermissionScope.Global => o => true,
+///             ScopeLevel.Global => o => true,
 ///             _ => o => false // Operators only visible at Global scope
 ///         };
 ///     }
@@ -62,7 +63,7 @@ public sealed record PermissionFilterContext
     /// <summary>
     /// User's scope for this permission
     /// </summary>
-    public required PermissionScope Scope { get; init; }
+    public required ScopeLevel Scope { get; init; }
 
     /// <summary>
     /// User's department ID (for Department scope filtering)

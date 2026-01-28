@@ -1,7 +1,7 @@
 -- =============================================
 -- Script: Update Scope Level Values
 -- Module: Identity
--- Purpose: Update Scope column to match new hierarchy design
+-- Purpose: Update Scope column to match ScopeLevel enum
 -- Dependencies: 007_CreateRolePermissionsTable.sql
 -- =============================================
 --
@@ -12,12 +12,13 @@
 --   3 = Employee (Self)
 --   NULL = No scope restriction
 --
--- NEW Scope Values (higher = more access):
---   4 = Global (system-wide access, super admin)
---   3 = Company (whole company)
+-- NEW Scope Values (matches ScopeLevel enum, lower = wider access):
+--   0 = Global (system-wide access, super admin)
+--   1 = Company (whole company)
 --   2 = Department (same department)
---   1 = Self (only own data)
---   NULL = No scope (for backward compatibility)
+--   3 = Position (same position/team)
+--   4 = Employee (only own data, self)
+--   NULL = Global (default for backward compatibility)
 --
 -- =============================================
 
@@ -27,48 +28,52 @@ GO
 -- =============================================
 -- Step 1: Update existing Scope values
 -- =============================================
--- Mapping:
---   OLD 0 (Company) -> NEW 3 (Company)
+-- Mapping (note: do in correct order to avoid conflicts):
+--   OLD 3 (Employee/Self) -> NEW 4 (Employee)
+--   OLD 2 (Position) -> NEW 3 (Position)
 --   OLD 1 (Department) -> NEW 2 (Department)
---   OLD 2 (Position) -> removed (use Department instead)
---   OLD 3 (Employee/Self) -> NEW 1 (Self)
---   NULL -> NEW 4 (Global) for operator permissions
+--   OLD 0 (Company) -> NEW 1 (Company)
+--   NULL -> NEW 0 (Global) for operator permissions
 -- =============================================
 
 BEGIN TRANSACTION
 
 BEGIN TRY
-    -- Update Company scope: 0 -> 3
+    -- Step 1: Update Employee/Self scope first: 3 -> 4
     UPDATE [Identity].RolePermissions
-    SET Scope = 3
-    WHERE Scope = 0
-
-    PRINT 'Updated Company scope (0 -> 3)'
-
-    -- Update Self scope: 3 -> 1 (do this before Department to avoid conflict)
-    UPDATE [Identity].RolePermissions
-    SET Scope = 1
+    SET Scope = 4
     WHERE Scope = 3
 
-    PRINT 'Updated Self scope (3 -> 1)'
+    PRINT 'Updated Employee/Self scope (3 -> 4)'
 
-    -- Update Department scope: 1 -> 2
+    -- Step 2: Update Position scope: 2 -> 3
+    UPDATE [Identity].RolePermissions
+    SET Scope = 3
+    WHERE Scope = 2
+
+    PRINT 'Updated Position scope (2 -> 3)'
+
+    -- Step 3: Update Department scope: 1 -> 2
     UPDATE [Identity].RolePermissions
     SET Scope = 2
     WHERE Scope = 1
 
     PRINT 'Updated Department scope (1 -> 2)'
 
-    -- Update Position scope to Department: 2 -> 2 (no change needed, already 2)
-    -- Position scope is deprecated, treat as Department
-
-    -- Update NULL scope to Global (4) for Identity module permissions
+    -- Step 4: Update Company scope: 0 -> 1
     UPDATE [Identity].RolePermissions
-    SET Scope = 4
+    SET Scope = 1
+    WHERE Scope = 0
+
+    PRINT 'Updated Company scope (0 -> 1)'
+
+    -- Step 5: Update NULL scope to Global (0) for Identity module permissions
+    UPDATE [Identity].RolePermissions
+    SET Scope = 0
     WHERE Scope IS NULL
       AND Module = 'Identity'
 
-    PRINT 'Updated NULL scope to Global (4) for Identity module'
+    PRINT 'Updated NULL scope to Global (0) for Identity module'
 
     COMMIT TRANSACTION
     PRINT 'Scope level migration completed successfully'
@@ -90,7 +95,7 @@ IF EXISTS (SELECT 1 FROM sys.extended_properties WHERE name = 'MS_Description'
 BEGIN
     EXEC sp_updateextendedproperty
         @name = N'MS_Description',
-        @value = N'Scope level: 4=Global, 3=Company, 2=Department, 1=Self',
+        @value = N'Scope level (ScopeLevel enum): 0=Global, 1=Company, 2=Department, 3=Position, 4=Employee',
         @level0type = N'SCHEMA', @level0name = N'Identity',
         @level1type = N'TABLE', @level1name = N'RolePermissions',
         @level2type = N'COLUMN', @level2name = N'Scope'
@@ -99,7 +104,7 @@ ELSE
 BEGIN
     EXEC sp_addextendedproperty
         @name = N'MS_Description',
-        @value = N'Scope level: 4=Global, 3=Company, 2=Department, 1=Self',
+        @value = N'Scope level (ScopeLevel enum): 0=Global, 1=Company, 2=Department, 3=Position, 4=Employee',
         @level0type = N'SCHEMA', @level0name = N'Identity',
         @level1type = N'TABLE', @level1name = N'RolePermissions',
         @level2type = N'COLUMN', @level2name = N'Scope'

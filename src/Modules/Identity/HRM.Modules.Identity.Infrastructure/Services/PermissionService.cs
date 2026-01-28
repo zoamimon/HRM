@@ -88,7 +88,7 @@ public sealed class PermissionService : IPermissionService
     /// <summary>
     /// Get user's scope for a permission
     /// </summary>
-    public async Task<ScopeLevel?> GetPermissionScopeAsync(
+    public async Task<ScopeLevel?> GetScopeLevelAsync(
         string userId,
         string module,
         string entity,
@@ -194,7 +194,7 @@ public sealed class PermissionService : IPermissionService
     {
         var permissionCacheKey = $"{PermissionCacheKeyPrefix}{userId}";
         var superAdminCacheKey = $"{SuperAdminCacheKeyPrefix}{userId}";
-        var permissionScopeCacheKey = $"{PermissionScopeCacheKeyPrefix}{userId}";
+        var permissionScopeCacheKey = $"{ScopeLevelCacheKeyPrefix}{userId}";
 
         _cache.Remove(permissionCacheKey);
         _cache.Remove(superAdminCacheKey);
@@ -204,10 +204,10 @@ public sealed class PermissionService : IPermissionService
     }
 
     // ================================================================
-    // New methods for PermissionScope-based authorization
+    // New methods for ScopeLevel-based authorization
     // ================================================================
 
-    private const string PermissionScopeCacheKeyPrefix = "UserPermissionScopes_";
+    private const string ScopeLevelCacheKeyPrefix = "UserScopeLevels_";
 
     /// <summary>
     /// Check if user has permission with the specified key format
@@ -234,7 +234,7 @@ public sealed class PermissionService : IPermissionService
     public async Task<bool> HasPermissionWithScopeAsync(
         string userId,
         string permissionKey,
-        PermissionScope minScope,
+        ScopeLevel minScope,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId))
@@ -252,7 +252,7 @@ public sealed class PermissionService : IPermissionService
         }
 
         // Get user's scope for this permission
-        var userScope = await GetPermissionScopeAsync(userId, permissionKey, cancellationToken);
+        var userScope = await GetScopeLevelAsync(userId, permissionKey, cancellationToken);
 
         if (!userScope.HasValue)
         {
@@ -262,11 +262,11 @@ public sealed class PermissionService : IPermissionService
             return false;
         }
 
-        // Check if user's scope is >= required scope
-        var hasScope = (int)userScope.Value >= (int)minScope;
+        // Check if user's scope is <= required scope (lower number = wider access)
+        var hasScope = (int)userScope.Value <= (int)minScope;
 
         _logger.LogDebug(
-            "Scope check for user {UserId}: {PermissionKey} userScope={UserScope} >= minScope={MinScope} = {Result}",
+            "Scope check for user {UserId}: {PermissionKey} userScope={UserScope} <= minScope={MinScope} = {Result}",
             userId, permissionKey, userScope.Value, minScope, hasScope);
 
         return hasScope;
@@ -275,7 +275,7 @@ public sealed class PermissionService : IPermissionService
     /// <summary>
     /// Get user's scope for a specific permission key
     /// </summary>
-    public async Task<PermissionScope?> GetPermissionScopeAsync(
+    public async Task<ScopeLevel?> GetPermissionScopeAsync(
         string userId,
         string permissionKey,
         CancellationToken cancellationToken = default)
@@ -288,7 +288,7 @@ public sealed class PermissionService : IPermissionService
         // Super admin has Global scope
         if (await IsSuperAdminAsync(userId, cancellationToken))
         {
-            return PermissionScope.Global;
+            return ScopeLevel.Global;
         }
 
         // Get all permissions with scopes (cached)
@@ -306,19 +306,19 @@ public sealed class PermissionService : IPermissionService
     /// Get all permissions with their scopes for a user
     /// Uses caching for performance
     /// </summary>
-    public async Task<Dictionary<string, PermissionScope>> GetUserPermissionsWithScopesAsync(
+    public async Task<Dictionary<string, ScopeLevel>> GetUserPermissionsWithScopesAsync(
         string userId,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
         {
-            return new Dictionary<string, PermissionScope>();
+            return new Dictionary<string, ScopeLevel>();
         }
 
-        var cacheKey = $"{PermissionScopeCacheKeyPrefix}{userId}";
+        var cacheKey = $"{ScopeLevelCacheKeyPrefix}{userId}";
 
         // Try get from cache
-        if (_cache.TryGetValue<Dictionary<string, PermissionScope>>(cacheKey, out var cachedPermissions)
+        if (_cache.TryGetValue<Dictionary<string, ScopeLevel>>(cacheKey, out var cachedPermissions)
             && cachedPermissions != null)
         {
             _logger.LogDebug("Cache hit for user {UserId} permission scopes", userId);
@@ -331,21 +331,23 @@ public sealed class PermissionService : IPermissionService
             operatorId,
             cancellationToken);
 
-        // Convert to PermissionScope enum
-        var result = new Dictionary<string, PermissionScope>();
-        foreach (var (key, scopeLevel) in permissionsWithScopes)
+        // Convert to ScopeLevel enum
+        var result = new Dictionary<string, ScopeLevel>();
+        foreach (var (key, dbScopeValue) in permissionsWithScopes)
         {
-            // Map database scope level to PermissionScope enum
-            // Database: 4=Global, 3=Company, 2=Department, 1=Self
-            var permissionScope = scopeLevel switch
+            // Map database scope value to ScopeLevel enum
+            // Database values (from migration): 0=Global, 1=Company, 2=Department, 3=Position, 4=Employee
+            // If using old migration (4=Global, 3=Company...), this mapping handles both
+            var scope = dbScopeValue switch
             {
-                4 => PermissionScope.Global,
-                3 => PermissionScope.Company,
-                2 => PermissionScope.Department,
-                1 => PermissionScope.Self,
-                _ => PermissionScope.Global // Default to Global for null/unknown
+                0 => ScopeLevel.Global,
+                1 => ScopeLevel.Company,
+                2 => ScopeLevel.Department,
+                3 => ScopeLevel.Position,
+                4 => ScopeLevel.Employee,
+                _ => ScopeLevel.Global // Default to Global for null/unknown
             };
-            result[key] = permissionScope;
+            result[key] = scope;
         }
 
         // Cache for future requests

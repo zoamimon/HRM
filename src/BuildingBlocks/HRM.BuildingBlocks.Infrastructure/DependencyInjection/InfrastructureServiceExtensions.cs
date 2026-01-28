@@ -4,7 +4,7 @@ using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
-using HRM.BuildingBlocks.Application.Abstractions.Security;
+using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;

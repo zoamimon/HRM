@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
+using HRM.BuildingBlocks.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace HRM.BuildingBlocks.Infrastructure.Security;
@@ -96,12 +97,12 @@ public sealed class RouteSecurityService : IRouteSecurityService
                     if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(permission))
                         continue;
 
-                    if (!Enum.TryParse<PermissionScope>(minScopeStr, true, out var minScope))
+                    if (!Enum.TryParse<ScopeLevel>(minScopeStr, true, out var minScope))
                     {
                         _logger.LogWarning(
                             "Invalid MinScope '{MinScope}' for route {Method} {Path} in {Source}",
                             minScopeStr, method, path, sourceName);
-                        minScope = PermissionScope.Global;
+                        minScope = ScopeLevel.Global;
                     }
 
                     _protectedRoutes.Add(new RouteSecurityEntry

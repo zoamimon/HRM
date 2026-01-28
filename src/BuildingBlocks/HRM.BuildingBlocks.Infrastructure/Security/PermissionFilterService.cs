@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
-using HRM.BuildingBlocks.Application.Abstractions.Security;
+using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
+using HRM.BuildingBlocks.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -77,7 +78,7 @@ public sealed class PermissionFilterService : IPermissionFilterService
     public PermissionFilterContext BuildContext(
         Guid userId,
         string permission,
-        PermissionScope scope,
+        ScopeLevel scope,
         Guid? departmentId = null,
         Guid? companyId = null)
     {

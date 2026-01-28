@@ -1,3 +1,5 @@
+using HRM.BuildingBlocks.Domain.Enums;
+
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
 /// <summary>
@@ -24,9 +26,9 @@ public sealed record RouteSecurityEntry
 
     /// <summary>
     /// Minimum scope level required to access this route
-    /// User's scope must be >= MinScope
+    /// User's scope must be &lt;= MinScope (lower number = wider access)
     /// </summary>
-    public required PermissionScope MinScope { get; init; }
+    public required ScopeLevel MinScope { get; init; }
 
     /// <summary>
     /// Compiled regex pattern for route matching
