@@ -77,7 +77,7 @@ public sealed class LoginCommandHandler
         }
 
         // 2. Check if account is locked
-        if (@operator.LockedUntilUtc.HasValue && @operator.LockedUntilUtc.Value > DateTime.UtcNow)
+        if (@operator.IsLocked())
         {
             return Result.Failure<LoginResponse>(
                 AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
@@ -103,9 +103,16 @@ public sealed class LoginCommandHandler
 
         if (!isPasswordValid)
         {
-            // TODO: Add RecordFailedLoginAttempt() method to Operator entity
-            // For now, increment manually
-            // @operator.RecordFailedLoginAttempt();
+            // Record failed login attempt and potentially lock account
+            @operator.RecordFailedLogin();
+            _operatorRepository.Update(@operator);
+
+            // Check if account got locked after this failed attempt
+            if (@operator.IsLocked())
+            {
+                return Result.Failure<LoginResponse>(
+                    AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
+            }
 
             // Generic error (don't reveal password was wrong)
             return Result.Failure<LoginResponse>(
@@ -113,8 +120,8 @@ public sealed class LoginCommandHandler
         }
 
         // 5. Password correct - reset failed attempts and update last login
-        // TODO: Add RecordSuccessfulLogin() method to Operator entity
-        // For now, we'll skip tracking (to be implemented in next iteration)
+        @operator.RecordLogin();
+        _operatorRepository.Update(@operator);
 
         // 6. Generate access token (JWT)
         var accessTokenResult = _tokenService.GenerateAccessToken(@operator);
