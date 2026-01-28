@@ -162,34 +162,18 @@ public static class IdentityInfrastructureExtensions
         // Scoped: Uses scoped repositories for database access
         services.AddScoped<IPermissionService, PermissionService>();
 
-        // 7. Load Route Security Map
-        // Load Identity module's RouteSecurityMap.xml into IRouteSecurityService
-        // This enables route-based permission checking via RoutePermissionMiddleware
-        LoadRouteSecurityMap(services);
+        // 7. Register Route Security Map Source
+        // Register Identity module's RouteSecurityMap.xml to be loaded at startup
+        // Actual loading happens in RouteSecurityLoaderService (IHostedService)
+        services.Configure<RouteSecurityOptions>(options =>
+        {
+            options.Sources.Add(new RouteSecurityMapSourceConfig
+            {
+                Assembly = typeof(IdentityInfrastructureExtensions).Assembly,
+                ResourceName = "HRM.Modules.Identity.Infrastructure.Security.RouteSecurityMap.xml"
+            });
+        });
 
         return services;
-    }
-
-    /// <summary>
-    /// Load RouteSecurityMap.xml from embedded resource into IRouteSecurityService
-    /// Called during service configuration to initialize route security
-    /// </summary>
-    private static void LoadRouteSecurityMap(IServiceCollection services)
-    {
-        // Build temporary provider to access IRouteSecurityService
-        var serviceProvider = services.BuildServiceProvider();
-        var routeSecurityService = serviceProvider.GetService<IRouteSecurityService>();
-
-        if (routeSecurityService == null)
-        {
-            // IRouteSecurityService not registered yet (should be registered by BuildingBlocks)
-            return;
-        }
-
-        // Load from embedded resource
-        var assembly = typeof(IdentityInfrastructureExtensions).Assembly;
-        var resourceName = "HRM.Modules.Identity.Infrastructure.Security.RouteSecurityMap.xml";
-
-        routeSecurityService.LoadFromEmbeddedResource(assembly, resourceName);
     }
 }

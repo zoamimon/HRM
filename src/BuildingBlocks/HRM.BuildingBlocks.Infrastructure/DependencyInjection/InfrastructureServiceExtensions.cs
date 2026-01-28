@@ -119,8 +119,13 @@ public static class InfrastructureServiceExtensions
 
         // Route-based Security Services
         // Singleton: RouteSecurityService maintains route security map in memory
-        // Modules register their RouteSecurityMap.xml via LoadFromEmbeddedResource
+        // Modules register their RouteSecurityMap.xml via IOptions<RouteSecurityOptions>
         services.AddSingleton<IRouteSecurityService, RouteSecurityService>();
+
+        // IHostedService: Loads all registered RouteSecurityMap sources at startup
+        // Runs after DI container is built, avoiding BuildServiceProvider anti-pattern
+        // Modules register sources via: services.Configure<RouteSecurityOptions>(o => o.Sources.Add(...))
+        services.AddHostedService<RouteSecurityLoaderService>();
 
         // Scoped: PermissionFilterService resolves IPermissionQueryFilter<T> from DI
         // Used for data-level security filtering based on user's permission scope

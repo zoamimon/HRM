@@ -26,6 +26,7 @@ public sealed class RouteSecurityService : IRouteSecurityService
 
     /// <summary>
     /// Load RouteSecurityMap from an embedded resource
+    /// Called by RouteSecurityLoaderService at startup
     /// </summary>
     public void LoadFromEmbeddedResource(Assembly assembly, string resourceName)
     {

@@ -5,6 +5,11 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 /// <summary>
 /// Service for route-based security
 /// Determines if a route is public or protected and what permissions are required
+///
+/// Loading Strategy:
+/// - Modules register sources via IOptions&lt;RouteSecurityOptions&gt; during DI
+/// - RouteSecurityLoaderService (IHostedService) loads all sources at startup
+/// - This ensures singleton is properly resolved from the real DI container
 /// </summary>
 public interface IRouteSecurityService
 {
