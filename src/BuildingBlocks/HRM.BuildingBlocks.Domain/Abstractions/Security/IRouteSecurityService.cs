@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
 /// <summary>
@@ -6,6 +8,20 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 /// </summary>
 public interface IRouteSecurityService
 {
+    /// <summary>
+    /// Load RouteSecurityMap from an embedded resource
+    /// </summary>
+    /// <param name="assembly">Assembly containing the embedded resource</param>
+    /// <param name="resourceName">Full resource name (e.g., "Namespace.Folder.FileName.xml")</param>
+    void LoadFromEmbeddedResource(Assembly assembly, string resourceName);
+
+    /// <summary>
+    /// Load RouteSecurityMap from XML string
+    /// </summary>
+    /// <param name="xml">XML content</param>
+    /// <param name="sourceName">Source name for logging</param>
+    void LoadFromXml(string xml, string sourceName = "unknown");
+
     /// <summary>
     /// Check if a route is public (no authentication required)
     /// </summary>
