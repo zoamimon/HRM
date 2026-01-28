@@ -89,13 +89,13 @@ public sealed class ApiClient : IApiClient
                     PropertyNameCaseInsensitive = true
                 };
 
-                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                var apiError = JsonSerializer.Deserialize<ApiErrorResponse>(errorContent, jsonOptions);
                 return new ApiResponse<OperatorResponse>
                 {
                     IsSuccess = false,
-                    ErrorCode = problemDetails?.Type ?? "ApiError",
-                    ErrorMessage = problemDetails?.Detail ?? "An error occurred while processing your request",
-                    ValidationErrors = problemDetails?.Errors
+                    ErrorCode = apiError?.GetErrorCode() ?? "ApiError",
+                    ErrorMessage = apiError?.GetErrorMessage() ?? "An error occurred while processing your request",
+                    ValidationErrors = apiError?.GetValidationErrors()
                 };
             }
             catch (Exception ex)
@@ -176,13 +176,13 @@ public sealed class ApiClient : IApiClient
                     PropertyNameCaseInsensitive = true
                 };
 
-                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                var apiError = JsonSerializer.Deserialize<ApiErrorResponse>(errorContent, jsonOptions);
                 return new ApiResponse<LoginResponse>
                 {
                     IsSuccess = false,
-                    ErrorCode = problemDetails?.Type ?? "LoginError",
-                    ErrorMessage = problemDetails?.Detail ?? "Invalid username or password",
-                    ValidationErrors = problemDetails?.Errors
+                    ErrorCode = apiError?.GetErrorCode() ?? "LoginError",
+                    ErrorMessage = apiError?.GetErrorMessage() ?? "Invalid username or password",
+                    ValidationErrors = apiError?.GetValidationErrors()
                 };
             }
             catch (Exception ex)
@@ -253,13 +253,13 @@ public sealed class ApiClient : IApiClient
                     PropertyNameCaseInsensitive = true
                 };
 
-                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                var apiError = JsonSerializer.Deserialize<ApiErrorResponse>(errorContent, jsonOptions);
                 return new ApiResponse<object>
                 {
                     IsSuccess = false,
-                    ErrorCode = problemDetails?.Type ?? "LogoutError",
-                    ErrorMessage = problemDetails?.Detail ?? "Failed to logout",
-                    ValidationErrors = problemDetails?.Errors
+                    ErrorCode = apiError?.GetErrorCode() ?? "LogoutError",
+                    ErrorMessage = apiError?.GetErrorMessage() ?? "Failed to logout",
+                    ValidationErrors = apiError?.GetValidationErrors()
                 };
             }
             catch (Exception ex)
@@ -348,13 +348,13 @@ public sealed class ApiClient : IApiClient
                     PropertyNameCaseInsensitive = true
                 };
 
-                var problemDetails = JsonSerializer.Deserialize<ProblemDetailsResponse>(errorContent, jsonOptions);
+                var apiError = JsonSerializer.Deserialize<ApiErrorResponse>(errorContent, jsonOptions);
                 return new ApiResponse<PagedResult<OperatorSummary>>
                 {
                     IsSuccess = false,
-                    ErrorCode = problemDetails?.Type ?? "ApiError",
-                    ErrorMessage = problemDetails?.Detail ?? "Failed to retrieve operators",
-                    ValidationErrors = problemDetails?.Errors
+                    ErrorCode = apiError?.GetErrorCode() ?? "ApiError",
+                    ErrorMessage = apiError?.GetErrorMessage() ?? "Failed to retrieve operators",
+                    ValidationErrors = apiError?.GetValidationErrors()
                 };
             }
             catch (Exception ex)
@@ -392,14 +392,36 @@ public sealed class ApiClient : IApiClient
     }
 
     /// <summary>
-    /// Model for deserializing RFC 7807 Problem Details responses
+    /// Model for deserializing API error responses
+    /// Supports both RFC 7807 Problem Details and DomainError format
     /// </summary>
-    private sealed class ProblemDetailsResponse
+    private sealed class ApiErrorResponse
     {
+        // RFC 7807 Problem Details format
         public string? Type { get; set; }
         public string? Title { get; set; }
         public int Status { get; set; }
         public string? Detail { get; set; }
         public Dictionary<string, string[]>? Errors { get; set; }
+
+        // DomainError format (from HRM.Api)
+        public string? Code { get; set; }
+        public string? Message { get; set; }
+        public Dictionary<string, string[]>? Details { get; set; }
+
+        /// <summary>
+        /// Get error code from either format
+        /// </summary>
+        public string GetErrorCode() => Code ?? Type ?? "ApiError";
+
+        /// <summary>
+        /// Get error message from either format
+        /// </summary>
+        public string GetErrorMessage() => Message ?? Detail ?? Title ?? "An error occurred";
+
+        /// <summary>
+        /// Get validation errors from either format
+        /// </summary>
+        public Dictionary<string, string[]>? GetValidationErrors() => Details ?? Errors;
     }
 }

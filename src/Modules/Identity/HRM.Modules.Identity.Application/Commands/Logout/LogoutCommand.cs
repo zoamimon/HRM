@@ -1,5 +1,4 @@
 using HRM.BuildingBlocks.Application.Abstractions.Commands;
-using HRM.BuildingBlocks.Domain.Abstractions.Results;
 
 namespace HRM.Modules.Identity.Application.Commands.Logout;
 
@@ -48,7 +47,7 @@ namespace HRM.Modules.Identity.Application.Commands.Logout;
 /// <param name="RefreshToken">Refresh token to revoke</param>
 public sealed record LogoutCommand(
     string RefreshToken
-) : IModuleCommand<Result>, IAuditableCommand
+) : IModuleCommand, IAuditableCommand
 {
     /// <summary>
     /// Module name for Unit of Work routing
