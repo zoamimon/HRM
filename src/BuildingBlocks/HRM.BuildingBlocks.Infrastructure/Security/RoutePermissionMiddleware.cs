@@ -4,6 +4,7 @@ using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HRM.BuildingBlocks.Infrastructure.Security;
 
@@ -22,15 +23,18 @@ public sealed class RoutePermissionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IRouteSecurityService _routeSecurityService;
+    private readonly IOptions<RouteSecurityOptions> _options;
     private readonly ILogger<RoutePermissionMiddleware> _logger;
 
     public RoutePermissionMiddleware(
         RequestDelegate next,
         IRouteSecurityService routeSecurityService,
+        IOptions<RouteSecurityOptions> options,
         ILogger<RoutePermissionMiddleware> logger)
     {
         _next = next;
         _routeSecurityService = routeSecurityService;
+        _options = options;
         _logger = logger;
     }
 
@@ -68,13 +72,28 @@ public sealed class RoutePermissionMiddleware
         // 3. Lookup route permission requirement
         var routeEntry = _routeSecurityService.GetRouteSecurityEntry(method, path);
 
-        // If route not found in security map, check if there's a fallback behavior
-        // For now, we'll allow routes not in the map (backward compatibility)
-        // TODO: Make this configurable (DenyByDefault vs AllowByDefault)
+        // If route not found in security map, apply DenyByDefault policy
         if (routeEntry == null)
         {
+            if (_options.Value.DenyByDefault)
+            {
+                _logger.LogWarning(
+                    "Route not in security map, denying by default (DenyByDefault=true): {Method} {Path}",
+                    method, path);
+
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    type = "https://httpstatuses.io/403",
+                    title = "Forbidden",
+                    status = 403,
+                    detail = "Route not configured in security map. Access denied by default policy."
+                });
+                return;
+            }
+
             _logger.LogDebug(
-                "Route not in security map, allowing by default: {Method} {Path}",
+                "Route not in security map, allowing (DenyByDefault=false): {Method} {Path}",
                 method, path);
             await _next(context);
             return;

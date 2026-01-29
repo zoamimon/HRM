@@ -25,6 +25,20 @@ public sealed class RouteSecurityMapSourceConfig
 public sealed class RouteSecurityOptions
 {
     /// <summary>
+    /// If true, routes not found in RouteSecurityMap will be denied (403)
+    /// If false, routes not found will be allowed through (backward compatibility)
+    ///
+    /// IMPORTANT: Enterprise systems should always use DenyByDefault = true
+    /// to prevent security holes when:
+    /// - Developer forgets to add a new endpoint to XML
+    /// - Endpoint path is renamed
+    /// - New module is added without RouteSecurityMap
+    ///
+    /// Default: true (secure by default)
+    /// </summary>
+    public bool DenyByDefault { get; set; } = true;
+
+    /// <summary>
     /// List of RouteSecurityMap sources to load at startup
     /// </summary>
     public List<RouteSecurityMapSourceConfig> Sources { get; } = new();
