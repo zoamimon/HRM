@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Abstractions;
+using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
@@ -53,11 +53,9 @@ public class EmployeeProfile : Entity, IAuditableEntity
     /// </summary>
     public bool CanAccessAllAssignedCompanies { get; private set; } = true;
 
-    // Audit fields
-    public DateTime CreatedAtUtc { get; set; }
-    public DateTime? ModifiedAtUtc { get; set; }
-    public string? CreatedBy { get; set; }
-    public string? ModifiedBy { get; set; }
+    // Audit fields inherited from Entity base class:
+    // - CreatedAtUtc, ModifiedAtUtc
+    // - CreatedById, ModifiedById (Guid?)
 
     // Navigation property (configured in EF)
     // public Account Account { get; private set; } = null!;
@@ -84,8 +82,8 @@ public class EmployeeProfile : Entity, IAuditableEntity
             DefaultScopeLevel = defaultScopeLevel,
             PrimaryCompanyId = primaryCompanyId,
             PrimaryDepartmentId = primaryDepartmentId,
-            PrimaryPositionId = primaryPositionId,
-            CreatedAtUtc = DateTime.UtcNow
+            PrimaryPositionId = primaryPositionId
+            // CreatedAtUtc is set automatically by Entity base class constructor
         };
     }
 
@@ -100,7 +98,7 @@ public class EmployeeProfile : Entity, IAuditableEntity
         PrimaryCompanyId = companyId;
         PrimaryDepartmentId = departmentId;
         PrimaryPositionId = positionId;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -109,7 +107,7 @@ public class EmployeeProfile : Entity, IAuditableEntity
     public void UpdateDefaultScopeLevel(ScopeLevel scopeLevel)
     {
         DefaultScopeLevel = scopeLevel;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -118,6 +116,6 @@ public class EmployeeProfile : Entity, IAuditableEntity
     public void SetCanAccessAllAssignedCompanies(bool value)
     {
         CanAccessAllAssignedCompanies = value;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 }

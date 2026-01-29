@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Abstractions;
+using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
 
@@ -40,11 +40,9 @@ public class SystemProfile : Entity, IAuditableEntity
     /// </summary>
     public string? Notes { get; private set; }
 
-    // Audit fields
-    public DateTime CreatedAtUtc { get; set; }
-    public DateTime? ModifiedAtUtc { get; set; }
-    public string? CreatedBy { get; set; }
-    public string? ModifiedBy { get; set; }
+    // Audit fields inherited from Entity base class:
+    // - CreatedAtUtc, ModifiedAtUtc
+    // - CreatedById, ModifiedById (Guid?)
 
     // Navigation property (configured in EF)
     // public Account Account { get; private set; } = null!;
@@ -68,8 +66,8 @@ public class SystemProfile : Entity, IAuditableEntity
             AccountId = accountId,
             IsSuperAdmin = isSuperAdmin,
             Department = department,
-            JobTitle = jobTitle,
-            CreatedAtUtc = DateTime.UtcNow
+            JobTitle = jobTitle
+            // CreatedAtUtc is set automatically by Entity base class constructor
         };
     }
 
@@ -79,7 +77,7 @@ public class SystemProfile : Entity, IAuditableEntity
     public void GrantSuperAdmin()
     {
         IsSuperAdmin = true;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -88,7 +86,7 @@ public class SystemProfile : Entity, IAuditableEntity
     public void RevokeSuperAdmin()
     {
         IsSuperAdmin = false;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -99,6 +97,6 @@ public class SystemProfile : Entity, IAuditableEntity
         Department = department;
         JobTitle = jobTitle;
         Notes = notes;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 }

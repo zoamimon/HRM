@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Abstractions;
+using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
@@ -125,11 +125,9 @@ public class Account : Entity, IAuditableEntity
     /// </summary>
     public DateTime? LockedUntilUtc { get; private set; }
 
-    // Audit fields
-    public DateTime CreatedAtUtc { get; set; }
-    public DateTime? ModifiedAtUtc { get; set; }
-    public string? CreatedBy { get; set; }
-    public string? ModifiedBy { get; set; }
+    // Audit fields inherited from Entity base class:
+    // - CreatedAtUtc, ModifiedAtUtc
+    // - CreatedById, ModifiedById (Guid?)
 
     // Navigation properties (configured in EF)
     // public SystemProfile? SystemProfile { get; private set; }
@@ -148,7 +146,7 @@ public class Account : Entity, IAuditableEntity
         string fullName,
         string? phoneNumber = null)
     {
-        var account = new Account
+        return new Account
         {
             Id = Guid.NewGuid(),
             Username = username,
@@ -157,11 +155,9 @@ public class Account : Entity, IAuditableEntity
             FullName = fullName,
             PhoneNumber = phoneNumber,
             AccountType = AccountType.System,
-            Status = AccountStatus.Pending,
-            CreatedAtUtc = DateTime.UtcNow
+            Status = AccountStatus.Pending
+            // CreatedAtUtc is set automatically by Entity base class constructor
         };
-
-        return account;
     }
 
     /// <summary>
@@ -174,7 +170,7 @@ public class Account : Entity, IAuditableEntity
         string fullName,
         string? phoneNumber = null)
     {
-        var account = new Account
+        return new Account
         {
             Id = Guid.NewGuid(),
             Username = username,
@@ -183,11 +179,9 @@ public class Account : Entity, IAuditableEntity
             FullName = fullName,
             PhoneNumber = phoneNumber,
             AccountType = AccountType.Employee,
-            Status = AccountStatus.Pending,
-            CreatedAtUtc = DateTime.UtcNow
+            Status = AccountStatus.Pending
+            // CreatedAtUtc is set automatically by Entity base class constructor
         };
-
-        return account;
     }
 
     /// <summary>
@@ -200,7 +194,7 @@ public class Account : Entity, IAuditableEntity
 
         Status = AccountStatus.Active;
         ActivatedAtUtc = DateTime.UtcNow;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -209,7 +203,7 @@ public class Account : Entity, IAuditableEntity
     public void Suspend()
     {
         Status = AccountStatus.Suspended;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -218,7 +212,7 @@ public class Account : Entity, IAuditableEntity
     public void Deactivate()
     {
         Status = AccountStatus.Deactivated;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -229,7 +223,7 @@ public class Account : Entity, IAuditableEntity
         LastLoginAtUtc = DateTime.UtcNow;
         FailedLoginAttempts = 0;
         LockedUntilUtc = null;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -238,31 +232,40 @@ public class Account : Entity, IAuditableEntity
     public void RecordFailedLogin(int maxAttempts = 5, int lockoutMinutes = 30)
     {
         FailedLoginAttempts++;
-        ModifiedAtUtc = DateTime.UtcNow;
 
         if (FailedLoginAttempts >= maxAttempts)
         {
             LockedUntilUtc = DateTime.UtcNow.AddMinutes(lockoutMinutes);
         }
+
+        MarkAsModified();
     }
 
     /// <summary>
-    /// Check if account is locked
+    /// Check if account is currently locked (QUERY - no side effects)
     /// </summary>
-    public bool IsLocked()
+    public bool IsLocked() =>
+        LockedUntilUtc.HasValue && LockedUntilUtc.Value > DateTime.UtcNow;
+
+    /// <summary>
+    /// Attempt to unlock account if lockout has expired (COMMAND - modifies state)
+    /// Call this before login attempts to auto-clear expired lockouts
+    /// </summary>
+    /// <returns>True if account was unlocked, false if still locked or wasn't locked</returns>
+    public bool TryUnlock()
     {
         if (!LockedUntilUtc.HasValue)
             return false;
 
         if (LockedUntilUtc.Value <= DateTime.UtcNow)
         {
-            // Lockout expired, reset
             LockedUntilUtc = null;
             FailedLoginAttempts = 0;
-            return false;
+            MarkAsModified();
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     /// <summary>
@@ -279,7 +282,7 @@ public class Account : Entity, IAuditableEntity
     public void UpdatePassword(string newPasswordHash)
     {
         PasswordHash = newPasswordHash;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -289,7 +292,7 @@ public class Account : Entity, IAuditableEntity
     {
         FullName = fullName;
         PhoneNumber = phoneNumber;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -299,7 +302,7 @@ public class Account : Entity, IAuditableEntity
     {
         IsTwoFactorEnabled = true;
         TwoFactorSecretKey = secretKey;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
@@ -309,7 +312,7 @@ public class Account : Entity, IAuditableEntity
     {
         IsTwoFactorEnabled = false;
         TwoFactorSecretKey = null;
-        ModifiedAtUtc = DateTime.UtcNow;
+        MarkAsModified();
     }
 
     /// <summary>
