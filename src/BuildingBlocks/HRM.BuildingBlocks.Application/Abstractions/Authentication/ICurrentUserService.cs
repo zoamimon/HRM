@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Application.Abstractions.Authentication;
@@ -140,13 +141,21 @@ public interface ICurrentUserService
     string? Email { get; }
 
     /// <summary>
-    /// Gets the current user's type (Operator or User).
-    /// 
+    /// Gets the current user's account type (System or Employee).
+    ///
     /// Critical for authorization:
-    /// - Operator: Global access, no data scoping
-    /// - User: Scoped access based on ScopeLevel and assignments
+    /// - System: Global access, no data scoping
+    /// - Employee: Scoped access based on ScopeLevel and assignments
     /// </summary>
+    AccountType AccountType { get; }
+
+    /// <summary>
+    /// Gets the current user's type (deprecated - use AccountType).
+    /// </summary>
+    [Obsolete("Use AccountType property instead")]
+#pragma warning disable CS0618
     UserType UserType { get; }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Gets the current user's scope level (only for UserType = User).

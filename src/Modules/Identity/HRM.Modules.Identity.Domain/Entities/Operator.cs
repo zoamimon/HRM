@@ -329,5 +329,10 @@ public sealed class Operator : SoftDeletableEntity, IAggregateRoot, IAuthenticat
     public string GetEmail() => Email;
     public string GetPasswordHash() => PasswordHash;
     public bool GetIsActive() => Status == OperatorStatus.Active;
+
+#pragma warning disable CS0618 // Implementing obsolete interface method
     public UserType GetUserType() => UserType.Operator;
+#pragma warning restore CS0618
+
+    public AccountType GetAccountType() => AccountType.System;
 }

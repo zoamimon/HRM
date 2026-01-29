@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Abstractions.Authentication;
@@ -229,5 +230,21 @@ public interface IAuthenticatable
     /// }
     /// </code>
     /// </summary>
+    [Obsolete("Use GetAccountType() instead. UserType will be removed in a future version.")]
     UserType GetUserType();
+
+    /// <summary>
+    /// Type of authenticated account (System or Employee).
+    /// This is the canonical method - use this instead of GetUserType().
+    ///
+    /// Mapping from deprecated UserType:
+    /// - UserType.Operator → AccountType.System
+    /// - UserType.User → AccountType.Employee
+    /// </summary>
+    AccountType GetAccountType()
+    {
+#pragma warning disable CS0618 // Suppress obsolete warning for transition
+        return GetUserType().ToAccountType();
+#pragma warning restore CS0618
+    }
 }

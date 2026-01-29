@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HRM.BuildingBlocks.Application.Abstractions.Authentication;
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 
@@ -130,8 +131,44 @@ public sealed class CurrentUserService : ICurrentUserService
                          ?? User?.FindFirst("email")?.Value;
 
     /// <summary>
-    /// Gets the current user's type (Operator or User) from JWT "UserType" claim
+    /// Gets the current user's account type (System or Employee).
+    /// This is the canonical property - use this instead of UserType.
     /// </summary>
+    public AccountType AccountType
+    {
+        get
+        {
+            var userTypeClaim = User?.FindFirst("UserType")?.Value;
+
+            if (string.IsNullOrEmpty(userTypeClaim))
+            {
+                // Default to Employee if not specified (most restrictive)
+                return AccountType.Employee;
+            }
+
+            // Try parsing as AccountType first
+            if (Enum.TryParse<AccountType>(userTypeClaim, ignoreCase: true, out var accountType))
+            {
+                return accountType;
+            }
+
+            // Fallback: try parsing as UserType and convert
+#pragma warning disable CS0618 // UserType is obsolete
+            if (Enum.TryParse<UserType>(userTypeClaim, ignoreCase: true, out var userType))
+            {
+                return userType.ToAccountType();
+            }
+#pragma warning restore CS0618
+
+            // Default to Employee if parse fails (most restrictive)
+            return AccountType.Employee;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current user's type (deprecated - use AccountType).
+    /// </summary>
+#pragma warning disable CS0618 // UserType is obsolete
     public UserType UserType
     {
         get
@@ -153,17 +190,18 @@ public sealed class CurrentUserService : ICurrentUserService
             return Domain.Enums.UserType.User;
         }
     }
+#pragma warning restore CS0618
 
     /// <summary>
-    /// Gets the current user's scope level from JWT "ScopeLevel" claim
-    /// Only applicable for Users, null for Operators
+    /// Gets the current user's scope level from JWT "ScopeLevel" claim.
+    /// Only applicable for Employee accounts, null for System accounts.
     /// </summary>
     public ScopeLevel? ScopeLevel
     {
         get
         {
-            // Operators don't have scope level (global access)
-            if (UserType == Domain.Enums.UserType.Operator)
+            // System accounts don't have scope level (global access)
+            if (AccountType == AccountType.System)
             {
                 return null;
             }
@@ -187,15 +225,15 @@ public sealed class CurrentUserService : ICurrentUserService
     }
 
     /// <summary>
-    /// Gets the current user's employee ID from JWT "EmployeeId" claim
-    /// Only applicable for Users, null for Operators
+    /// Gets the current user's employee ID from JWT "EmployeeId" claim.
+    /// Only applicable for Employee accounts, null for System accounts.
     /// </summary>
     public Guid? EmployeeId
     {
         get
         {
-            // Operators don't have employee ID
-            if (UserType == Domain.Enums.UserType.Operator)
+            // System accounts don't have employee ID
+            if (AccountType == AccountType.System)
             {
                 return null;
             }
@@ -274,16 +312,28 @@ public sealed class CurrentUserService : ICurrentUserService
     public bool IsInRole(string role) => HasRole(role);
 
     /// <summary>
-    /// Checks if the current user is an Operator
-    /// Operators have global access without data scoping
+    /// Checks if the current user is a System account (operator/admin).
+    /// System accounts have global access without data scoping.
     /// </summary>
-    /// <returns>True if user is an Operator, false otherwise</returns>
-    public bool IsOperator() => UserType == Domain.Enums.UserType.Operator;
+    /// <returns>True if user is a System account, false otherwise</returns>
+    public bool IsSystemAccount() => AccountType == AccountType.System;
 
     /// <summary>
-    /// Checks if the current user is a User (employee)
-    /// Users have scoped access based on ScopeLevel
+    /// Checks if the current user is an Employee account.
+    /// Employee accounts have scoped access based on ScopeLevel.
     /// </summary>
-    /// <returns>True if user is a User (employee), false otherwise</returns>
-    public bool IsUser() => UserType == Domain.Enums.UserType.User;
+    /// <returns>True if user is an Employee account, false otherwise</returns>
+    public bool IsEmployeeAccount() => AccountType == AccountType.Employee;
+
+    /// <summary>
+    /// Checks if the current user is an Operator (deprecated - use IsSystemAccount).
+    /// </summary>
+    [Obsolete("Use IsSystemAccount() instead")]
+    public bool IsOperator() => AccountType == AccountType.System;
+
+    /// <summary>
+    /// Checks if the current user is a User (deprecated - use IsEmployeeAccount).
+    /// </summary>
+    [Obsolete("Use IsEmployeeAccount() instead")]
+    public bool IsUser() => AccountType == AccountType.Employee;
 }

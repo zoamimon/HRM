@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Entities;
 
@@ -89,15 +90,27 @@ public interface IRefreshTokenRepository
     /// - Indexed token lookup
     /// </summary>
     /// <param name="token">Token string</param>
-    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="accountType">Type of account (System or Employee)</param>
     /// <param name="principalId">Principal ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>RefreshToken entity or null if not found</returns>
     Task<RefreshToken?> GetByTokenAndPrincipalAsync(
         string token,
+        AccountType accountType,
+        Guid principalId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get refresh token by token string and principal (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetByTokenAndPrincipalAsync(string, AccountType, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618
+    Task<RefreshToken?> GetByTokenAndPrincipalAsync(
+        string token,
         UserType userType,
         Guid principalId,
         CancellationToken cancellationToken = default);
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get all active sessions for a principal (except specified token)
@@ -117,16 +130,28 @@ public interface IRefreshTokenRepository
     /// - Filtered in database (not in memory)
     /// - Typical execution time: 5-20ms for 1-100 sessions
     /// </summary>
-    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="accountType">Type of account (System or Employee)</param>
     /// <param name="principalId">Principal ID</param>
     /// <param name="exceptTokenId">Token ID to exclude (current session)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of active RefreshToken entities</returns>
     Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
+        AccountType accountType,
+        Guid principalId,
+        Guid exceptTokenId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get active sessions except specified (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetActiveSessionsExceptAsync(AccountType, Guid, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618
+    Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
         UserType userType,
         Guid principalId,
         Guid exceptTokenId,
         CancellationToken cancellationToken = default);
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get all active sessions for a principal
@@ -147,14 +172,25 @@ public interface IRefreshTokenRepository
     /// - Ordered by CreatedAtUtc DESC (most recent first)
     /// - Typical execution time: 5-20ms for 1-100 sessions
     /// </summary>
-    /// <param name="userType">Type of user (Operator, Employee, etc.)</param>
+    /// <param name="accountType">Type of account (System or Employee)</param>
     /// <param name="principalId">Principal ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of active RefreshToken entities ordered by creation date (newest first)</returns>
     Task<List<RefreshToken>> GetActiveSessionsAsync(
+        AccountType accountType,
+        Guid principalId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get active sessions (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetActiveSessionsAsync(AccountType, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618
+    Task<List<RefreshToken>> GetActiveSessionsAsync(
         UserType userType,
         Guid principalId,
         CancellationToken cancellationToken = default);
+#pragma warning restore CS0618
 
     /// <summary>
     /// Add new refresh token to repository
