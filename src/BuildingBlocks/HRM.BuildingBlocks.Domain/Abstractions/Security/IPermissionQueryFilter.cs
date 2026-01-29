@@ -4,31 +4,19 @@ using HRM.BuildingBlocks.Domain.Enums;
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
 /// <summary>
-/// Interface for permission-based query filters
-/// Applies data-level security based on user's permission scope
+/// [DEPRECATED] Interface for permission-based query filters
 ///
-/// Usage:
-/// Each entity that needs scope-based filtering implements a filter class
-/// The filter is automatically applied to queries via middleware or service
+/// IMPORTANT: This interface is deprecated. Use the Scope Specification Pattern instead:
+/// - IDataScopeRuleProvider: Single source of truth for scope rules
+/// - EfScopeExpressionBuilder: Translates rules to EF expressions
+/// - SqlScopeWhereBuilder: Translates rules to SQL WHERE clauses
 ///
-/// Example:
-/// <code>
-/// public class OperatorViewFilter : IPermissionQueryFilter&lt;Operator&gt;
-/// {
-///     public string Permission => "Identity.Operator.View";
-///
-///     public Expression&lt;Func&lt;Operator, bool&gt;&gt; Build(PermissionFilterContext context)
-///     {
-///         return context.Scope switch
-///         {
-///             ScopeLevel.Global => o => true,
-///             _ => o => false // Operators only visible at Global scope
-///         };
-///     }
-/// }
-/// </code>
+/// Migration:
+/// 1. Inject IDataScopeRuleProvider
+/// 2. Get rule: var rule = await ruleProvider.GetRuleAsync(context)
+/// 3. Build expression: var expr = EfScopeExpressionBuilder.Build&lt;T&gt;(rule)
 /// </summary>
-/// <typeparam name="TEntity">Entity type to filter</typeparam>
+[Obsolete("Use IDataScopeRuleProvider + EfScopeExpressionBuilder instead. See Scope Specification Pattern.")]
 public interface IPermissionQueryFilter<TEntity> where TEntity : class
 {
     /// <summary>
@@ -45,9 +33,10 @@ public interface IPermissionQueryFilter<TEntity> where TEntity : class
 }
 
 /// <summary>
-/// Context for building permission query filters
-/// Contains user information and their scope for the current permission
+/// [DEPRECATED] Context for building permission query filters
+/// Use DataScopeContext from IDataScopeRuleProvider instead.
 /// </summary>
+[Obsolete("Use DataScopeContext from IDataScopeRuleProvider instead.")]
 public sealed record PermissionFilterContext
 {
     /// <summary>

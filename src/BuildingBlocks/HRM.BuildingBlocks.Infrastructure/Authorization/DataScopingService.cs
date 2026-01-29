@@ -7,23 +7,18 @@ using System.Data;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Implementation of IDataScopingService
-/// Applies data scoping filters based on user's scope level
+/// [DEPRECATED] Implementation of IDataScopingService
 ///
-/// Scope Strategy:
-/// - Per-request caching (Scoped lifetime)
-/// - Single database query to load assignments
-/// - Lazy loading (query only when GetCurrentScopeAsync called)
+/// IMPORTANT: This class is deprecated. Use the Scope Specification Pattern instead:
+/// - IDataScopeRuleProvider: Single source of truth for scope rules
+/// - SqlScopeWhereBuilder: Translates rules to SQL WHERE clauses
 ///
-/// Performance:
-/// - Cached in _cachedScopeContext for request lifetime
-/// - No repeated database queries within same request
-/// - Efficient for multiple query handlers using scoping
-///
-/// Implementation Note:
-/// This is a base implementation that works with standard EmployeeAssignments structure.
-/// Each module can extend or customize this as needed.
+/// Migration:
+/// 1. Inject IDataScopeRuleProvider
+/// 2. Get rule: var rule = await ruleProvider.GetRuleAsync(context)
+/// 3. Build SQL: var where = SqlScopeWhereBuilder.Build(rule, parameters)
 /// </summary>
+[Obsolete("Use IDataScopeRuleProvider + SqlScopeWhereBuilder instead. See Scope Specification Pattern.")]
 public sealed class DataScopingService : IDataScopingService
 {
     private readonly ICurrentUserService _currentUserService;
