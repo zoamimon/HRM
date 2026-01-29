@@ -3,52 +3,8 @@ using HRM.BuildingBlocks.Domain.Enums;
 namespace HRM.BuildingBlocks.Domain.Entities;
 
 /// <summary>
-/// Account type enumeration
-/// </summary>
-public enum AccountType
-{
-    /// <summary>
-    /// System account (internal operators, admins)
-    /// Has access to system configuration and all data
-    /// </summary>
-    System = 0,
-
-    /// <summary>
-    /// Employee account (HR employees)
-    /// Access is scoped based on department/company/position
-    /// </summary>
-    Employee = 1
-}
-
-/// <summary>
-/// Account status enumeration
-/// </summary>
-public enum AccountStatus
-{
-    /// <summary>
-    /// Account is pending activation
-    /// </summary>
-    Pending = 0,
-
-    /// <summary>
-    /// Account is active and can login
-    /// </summary>
-    Active = 1,
-
-    /// <summary>
-    /// Account is suspended (temporarily disabled)
-    /// </summary>
-    Suspended = 2,
-
-    /// <summary>
-    /// Account is deactivated (permanently disabled)
-    /// </summary>
-    Deactivated = 3
-}
-
-/// <summary>
-/// Unified Account entity for authentication
-/// Supports both System accounts and Employee accounts
+/// Unified Account entity for authentication.
+/// Supports both System accounts and Employee accounts.
 ///
 /// Architecture:
 /// - Account: Authentication data (login, password, sessions)
