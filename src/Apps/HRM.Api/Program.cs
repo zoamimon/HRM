@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using HRM.Api.DependencyInjection;
-using HRM.BuildingBlocks.Infrastructure.Authorization;
 using HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 using HRM.BuildingBlocks.Infrastructure.Security;
 
@@ -59,27 +58,16 @@ builder.Services.AddCors(options =>
 // before modules that depend on it
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
-// Add Authorization with policies
-builder.Services.AddAuthorization(options =>
-{
-    // Admin-only policy for operator management
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("Admin"));
-
-    // Manager policy for department/employee management
-    options.AddPolicy("Manager", policy =>
-        policy.RequireRole("Admin", "Manager"));
-
-    // Authenticated user policy
-    options.AddPolicy("User", policy =>
-        policy.RequireAuthenticatedUser());
-});
-
-// Add Permission-based Authorization
-// - Registers PermissionPolicyProvider for dynamic policy creation
-// - Registers PermissionAuthorizationHandler for handling [HasPermission] attributes
-// - Policies are created on-demand from permission strings (e.g., "Permission:Identity.Operator.Create")
-builder.Services.AddPermissionAuthorization();
+// Add Authorization (minimal - infrastructure only)
+// NOTE: Business endpoint authorization is handled by RoutePermissionMiddleware
+// which reads permissions from RouteSecurityMap.xml (single source of truth)
+//
+// ASP.NET Authorization is only used for:
+// - Infrastructure endpoints (health, openapi) via .AllowAnonymous()
+// - Basic [Authorize] attribute for OpenAPI documentation
+//
+// DO NOT add business policies here - use RouteSecurityMap.xml instead
+builder.Services.AddAuthorization();
 
 // Register all HRM modules (BuildingBlocks + Identity + future modules)
 // This registers:

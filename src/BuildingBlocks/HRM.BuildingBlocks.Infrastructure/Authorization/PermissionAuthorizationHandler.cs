@@ -6,24 +6,17 @@ using Microsoft.Extensions.Logging;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Authorization handler for permission-based access control
+/// [DEPRECATED] Authorization handler for permission-based access control
 ///
-/// Design:
-/// - Handles PermissionRequirement checks
-/// - Uses IPermissionService to verify user permissions
-/// - Supports super admin bypass
-/// - Logs authorization decisions for auditing
+/// IMPORTANT: This handler is deprecated. Use RoutePermissionMiddleware instead.
+/// RouteSecurityMap.xml is the Single Source of Truth for endpoint authorization.
 ///
-/// Flow:
-/// 1. Extract user ID from claims
-/// 2. Check if super admin (bypass all checks)
-/// 3. Check specific permission via IPermissionService
-/// 4. Succeed or fail the requirement
-///
-/// Usage:
-/// Automatically invoked by ASP.NET Core Authorization middleware
-/// when [HasPermission] or [Authorize(Policy = "...")] is used
+/// Migration:
+/// - Remove AddPermissionAuthorization() from Program.cs
+/// - Add routes to RouteSecurityMap.xml
+/// - RoutePermissionMiddleware handles authorization automatically
 /// </summary>
+[Obsolete("Use RoutePermissionMiddleware instead. RouteSecurityMap.xml is the Single Source of Truth.")]
 public sealed class PermissionAuthorizationHandler
     : AuthorizationHandler<PermissionRequirement>
 {

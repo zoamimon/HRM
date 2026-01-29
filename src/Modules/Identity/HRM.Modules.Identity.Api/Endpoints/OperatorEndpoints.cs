@@ -33,10 +33,11 @@ namespace HRM.Modules.Identity.Api.Endpoints;
 ///    - Activate pending operator (admin-only)
 ///    - Returns: 200 OK with OperatorResponse
 ///
-/// Authorization:
-/// - All endpoints require authentication (Bearer JWT)
-/// - RequireAuthorization() adds [Authorize] behavior
-/// - Policy-based: "AdminOnly" policy (role = Admin)
+/// Authorization Architecture:
+/// - Single Source of Truth: RouteSecurityMap.xml
+/// - .RequireAuthorization() only for OpenAPI docs (lock icon) and basic auth check
+/// - Actual permission checks: RoutePermissionMiddleware (reads from XML)
+/// - DO NOT use [HasPermission] attributes or role policies - deprecated
 ///
 /// Error Handling:
 /// - ResultExtensions.ToHttpResultAsync() maps DomainError → HTTP
@@ -64,9 +65,11 @@ public static class OperatorEndpoints
     public static IEndpointRouteBuilder MapOperatorEndpoints(this IEndpointRouteBuilder app)
     {
         // Create route group: /api/identity/operators
+        // RequireAuthorization() is for OpenAPI docs only - actual permission checks
+        // are done by RoutePermissionMiddleware using RouteSecurityMap.xml
         var group = app.MapGroup("/api/identity/operators")
             .WithTags("Operators")
-            .RequireAuthorization(); // All endpoints require authentication
+            .RequireAuthorization();
 
         // 1. Register operator
         // Permission enforced by RoutePermissionMiddleware: Identity.Operator.Create

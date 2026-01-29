@@ -4,26 +4,17 @@ using Microsoft.Extensions.Options;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Dynamic policy provider for permission-based authorization
+/// [DEPRECATED] Dynamic policy provider for permission-based authorization
 ///
-/// Design:
-/// - Creates policies on-demand from permission strings
-/// - Avoids need to register all permissions upfront
-/// - Supports HasPermissionAttribute's policy naming convention
+/// IMPORTANT: This provider is deprecated. Use RoutePermissionMiddleware instead.
+/// RouteSecurityMap.xml is the Single Source of Truth for endpoint authorization.
 ///
-/// Policy Naming:
-/// - Format: "Permission:{Module}.{Entity}.{Action}"
-/// - Example: "Permission:Personnel.Employee.View"
-///
-/// How it works:
-/// 1. ASP.NET Core calls GetPolicyAsync with policy name
-/// 2. If name starts with "Permission:", extract permission parts
-/// 3. Create policy with PermissionRequirement
-/// 4. Return policy for authorization handler
-///
-/// Fallback:
-/// - Non-permission policies delegate to DefaultAuthorizationPolicyProvider
+/// Migration:
+/// - Remove AddPermissionAuthorization() from Program.cs
+/// - Add routes to RouteSecurityMap.xml
+/// - RoutePermissionMiddleware handles authorization automatically
 /// </summary>
+[Obsolete("Use RoutePermissionMiddleware instead. RouteSecurityMap.xml is the Single Source of Truth.")]
 public sealed class PermissionPolicyProvider : IAuthorizationPolicyProvider
 {
     private readonly DefaultAuthorizationPolicyProvider _fallbackPolicyProvider;

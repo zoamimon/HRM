@@ -4,65 +4,55 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Dependency injection extensions for permission-based authorization
+/// [DEPRECATED] Dependency injection extensions for permission-based authorization
 ///
-/// Design:
-/// - Registers authorization handler and policy provider
-/// - Integrates with ASP.NET Core Authorization middleware
-/// - IPermissionService must be registered separately (by Identity module)
+/// IMPORTANT: This extension is deprecated. Use RoutePermissionMiddleware instead.
+/// RouteSecurityMap.xml is the Single Source of Truth for endpoint authorization.
 ///
-/// Registration Order:
-/// 1. AddPermissionAuthorization() - registers handler and policy provider
-/// 2. Identity module registers IPermissionService implementation
-/// 3. UseAuthorization() in middleware pipeline
+/// New Architecture:
+/// - Remove AddPermissionAuthorization() from Program.cs
+/// - Keep only AddAuthorization() for infrastructure endpoints
+/// - Add routes to RouteSecurityMap.xml (each module has its own XML)
+/// - app.UseRoutePermissions() handles all authorization
 ///
-/// Usage:
-/// <code>
-/// // In Program.cs or Startup.cs
-/// builder.Services.AddAuthentication(...);
-/// builder.Services.AddPermissionAuthorization();
-///
-/// // Identity module registers IPermissionService
-/// builder.Services.AddIdentityInfrastructure(configuration);
-///
-/// // Middleware
-/// app.UseAuthentication();
-/// app.UseAuthorization();
-/// </code>
+/// Authorization Layers:
+/// - Endpoint protection: RouteSecurityMap.xml (Single Source of Truth)
+/// - Data filtering: IPermissionFilterService
+/// - Role → Permission mapping: Identity module (database)
 /// </summary>
 public static class AuthorizationExtensions
 {
     /// <summary>
-    /// Add permission-based authorization services
-    ///
-    /// Registers:
-    /// - IAuthorizationPolicyProvider: PermissionPolicyProvider (dynamic policy creation)
-    /// - IAuthorizationHandler: PermissionAuthorizationHandler (permission checking)
-    ///
-    /// Note: IPermissionService must be registered separately
+    /// [DEPRECATED] Add permission-based authorization services
+    /// Use RoutePermissionMiddleware and RouteSecurityMap.xml instead.
     /// </summary>
+    [Obsolete("Use RoutePermissionMiddleware instead. Remove this call from Program.cs.")]
     public static IServiceCollection AddPermissionAuthorization(this IServiceCollection services)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         // Register dynamic policy provider
-        // Singleton: Creates policies on-demand, stateless
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 
         // Register authorization handler
-        // Scoped: May need scoped services (like DbContext) for permission checks
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+#pragma warning restore CS0618
 
         return services;
     }
 
     /// <summary>
-    /// Add permission-based authorization with custom configuration
+    /// [DEPRECATED] Add permission-based authorization with custom configuration
+    /// Use RoutePermissionMiddleware and RouteSecurityMap.xml instead.
     /// </summary>
+    [Obsolete("Use RoutePermissionMiddleware instead. Remove this call from Program.cs.")]
     public static IServiceCollection AddPermissionAuthorization(
         this IServiceCollection services,
         Action<AuthorizationOptions> configure)
     {
         services.AddAuthorization(configure);
+#pragma warning disable CS0618 // Type or member is obsolete
         services.AddPermissionAuthorization();
+#pragma warning restore CS0618
 
         return services;
     }

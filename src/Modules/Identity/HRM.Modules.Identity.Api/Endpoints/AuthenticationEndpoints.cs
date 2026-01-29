@@ -30,9 +30,11 @@ namespace HRM.Modules.Identity.Api.Endpoints;
 /// - Web: Access token in memory (JS), Refresh token in HttpOnly cookie
 /// - Mobile: Both tokens in request/response body (stored in secure storage)
 ///
-/// Security:
-/// - Login/Refresh: AllowAnonymous
-/// - Logout/Sessions: RequireAuthorization
+/// Security Architecture:
+/// - Login/Refresh: Public routes (defined in RouteSecurityMap.xml)
+/// - Logout/Sessions: Protected routes (RoutePermissionMiddleware checks permissions)
+/// - .RequireAuthorization() for OpenAPI docs (lock icon) only
+/// - Actual auth: RouteSecurityMap.xml is Single Source of Truth
 /// - HTTPS enforced in production
 /// - CORS configured for allowed origins
 /// </summary>

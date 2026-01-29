@@ -3,33 +3,22 @@ using Microsoft.AspNetCore.Authorization;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Authorization attribute for permission-based access control
+/// [DEPRECATED] Authorization attribute for permission-based access control
 ///
-/// Design:
+/// IMPORTANT: This attribute is deprecated. Use RouteSecurityMap.xml instead.
+/// RouteSecurityMap is the Single Source of Truth for endpoint authorization.
+///
+/// Migration:
+/// - Remove [HasPermission] attributes from endpoints
+/// - Add route to RouteSecurityMap.xml with Permission and MinScope
+/// - RoutePermissionMiddleware handles authorization automatically
+///
+/// Old Design (deprecated):
 /// - Wraps [Authorize(Policy = "...")] for cleaner syntax
 /// - Generates policy name from module, entity, action
 /// - Used on controllers or endpoints
-///
-/// Policy Naming Convention:
-/// - Format: {Module}.{Entity}.{Action}
-/// - Example: "Personnel.Employee.View"
-/// - Policies are registered dynamically via PermissionPolicyProvider
-///
-/// Usage:
-/// <code>
-/// // On controller
-/// [HasPermission("Personnel", "Employee", "View")]
-/// public class EmployeeController : ControllerBase { }
-///
-/// // On action
-/// [HasPermission("Personnel", "Employee", "Create")]
-/// public async Task&lt;IActionResult&gt; Create([FromBody] CreateEmployeeRequest request) { }
-///
-/// // On minimal API endpoint
-/// app.MapGet("/employees", GetEmployees)
-///    .RequireAuthorization(new HasPermissionAttribute("Personnel", "Employee", "View"));
-/// </code>
 /// </summary>
+[Obsolete("Use RouteSecurityMap.xml instead. RoutePermissionMiddleware is the Single Source of Truth for endpoint authorization.")]
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
 public sealed class HasPermissionAttribute : AuthorizeAttribute
 {

@@ -3,26 +3,17 @@ using Microsoft.AspNetCore.Authorization;
 namespace HRM.BuildingBlocks.Infrastructure.Authorization;
 
 /// <summary>
-/// Authorization requirement for permission-based access control
+/// [DEPRECATED] Authorization requirement for permission-based access control
 ///
-/// Design:
-/// - Implements IAuthorizationRequirement for ASP.NET Core Authorization
-/// - Defines required module, entity, and action for access
-/// - Used with HasPermissionAttribute on endpoints
+/// IMPORTANT: This class is deprecated. Use RouteSecurityMap.xml instead.
+/// RouteSecurityMap is the Single Source of Truth for endpoint authorization.
 ///
-/// Permission Format: {Module}.{Entity}.{Action}
-/// Example: "Personnel.Employee.View", "Identity.Role.Create"
-///
-/// Usage:
-/// <code>
-/// // On endpoint
-/// [HasPermission("Personnel", "Employee", "View")]
-/// public async Task&lt;IResult&gt; GetEmployees() { ... }
-///
-/// // Or with policy
-/// [Authorize(Policy = "Personnel.Employee.View")]
-/// </code>
+/// Migration:
+/// - Remove [HasPermission] attributes from endpoints
+/// - Add routes to RouteSecurityMap.xml with Permission and MinScope
+/// - RoutePermissionMiddleware handles authorization automatically
 /// </summary>
+[Obsolete("Use RouteSecurityMap.xml instead. RoutePermissionMiddleware is the Single Source of Truth.")]
 public sealed class PermissionRequirement : IAuthorizationRequirement
 {
     /// <summary>
