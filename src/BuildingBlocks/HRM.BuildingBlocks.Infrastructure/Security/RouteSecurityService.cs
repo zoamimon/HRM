@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -11,6 +12,11 @@ namespace HRM.BuildingBlocks.Infrastructure.Security;
 /// Service for route-based security
 /// Loads and parses RouteSecurityMap.xml files from module assemblies
 /// Provides route matching to determine permissions required
+///
+/// Performance Optimization:
+/// - Route lookups are cached using ConcurrentDictionary
+/// - First lookup does regex matching, subsequent lookups hit cache
+/// - Cache is thread-safe for concurrent requests
 /// </summary>
 public sealed class RouteSecurityService : IRouteSecurityService
 {
@@ -18,6 +24,11 @@ public sealed class RouteSecurityService : IRouteSecurityService
     private readonly List<RouteSecurityEntry> _protectedRoutes = new();
     private readonly ILogger<RouteSecurityService> _logger;
     private bool _isLoaded;
+
+    // Route lookup caches - avoid regex matching on every request
+    // Key format: "{METHOD}:{normalizedPath}" e.g. "GET:/api/identity/operators"
+    private readonly ConcurrentDictionary<string, bool> _publicRouteCache = new();
+    private readonly ConcurrentDictionary<string, RouteSecurityEntry?> _protectedRouteCache = new();
 
     public RouteSecurityService(ILogger<RouteSecurityService> logger)
     {
@@ -136,11 +147,28 @@ public sealed class RouteSecurityService : IRouteSecurityService
     {
         method = method.ToUpperInvariant();
         path = NormalizePath(path);
+        var cacheKey = $"{method}:{path}";
 
-        return _publicRoutes.Any(r =>
+        // Try cache first
+        return _publicRouteCache.GetOrAdd(cacheKey, _ => LookupPublicRoute(method, path));
+    }
+
+    /// <summary>
+    /// Actual public route lookup (called on cache miss)
+    /// </summary>
+    private bool LookupPublicRoute(string method, string path)
+    {
+        var isPublic = _publicRoutes.Any(r =>
             r.Method == method &&
             (r.Path.Equals(path, StringComparison.OrdinalIgnoreCase) ||
              (r.PathPattern != null && Regex.IsMatch(path, r.PathPattern, RegexOptions.IgnoreCase))));
+
+        if (isPublic)
+        {
+            _logger.LogDebug("Cache miss - public route found: {Method} {Path}", method, path);
+        }
+
+        return isPublic;
     }
 
     /// <inheritdoc />
@@ -148,20 +176,41 @@ public sealed class RouteSecurityService : IRouteSecurityService
     {
         method = method.ToUpperInvariant();
         path = NormalizePath(path);
+        var cacheKey = $"{method}:{path}";
 
+        // Try cache first
+        return _protectedRouteCache.GetOrAdd(cacheKey, _ => LookupProtectedRoute(method, path));
+    }
+
+    /// <summary>
+    /// Actual protected route lookup (called on cache miss)
+    /// </summary>
+    private RouteSecurityEntry? LookupProtectedRoute(string method, string path)
+    {
         // Try exact match first
         var exactMatch = _protectedRoutes.FirstOrDefault(r =>
             r.Method == method &&
             r.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
 
         if (exactMatch != null)
+        {
+            _logger.LogDebug("Cache miss - exact match found: {Method} {Path}", method, path);
             return exactMatch;
+        }
 
         // Try pattern match
-        return _protectedRoutes.FirstOrDefault(r =>
+        var patternMatch = _protectedRoutes.FirstOrDefault(r =>
             r.Method == method &&
             r.PathPattern != null &&
             Regex.IsMatch(path, r.PathPattern, RegexOptions.IgnoreCase));
+
+        if (patternMatch != null)
+        {
+            _logger.LogDebug("Cache miss - pattern match found: {Method} {Path} -> {Pattern}",
+                method, path, patternMatch.Path);
+        }
+
+        return patternMatch;
     }
 
     /// <inheritdoc />
