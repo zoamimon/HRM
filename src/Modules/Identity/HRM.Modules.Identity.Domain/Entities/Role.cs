@@ -36,7 +36,7 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - RolePermissionsModifiedDomainEvent: Raised when permissions added/removed
 /// - RoleDeletedDomainEvent: Raised when role soft-deleted
 /// </summary>
-public sealed class Role : Entity, IAggregateRoot
+public sealed class Role : SoftDeletableEntity, IAggregateRoot
 {
     private readonly List<RolePermission> _permissions = new();
 

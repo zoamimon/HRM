@@ -1,4 +1,3 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
@@ -14,7 +13,7 @@ namespace HRM.BuildingBlocks.Domain.Entities;
 ///
 /// This bridges authentication (Account) with HR data (Employee).
 /// </summary>
-public class EmployeeProfile : Entity, IAuditableEntity
+public class EmployeeProfile : AuditableEntity
 {
     /// <summary>
     /// Reference to the Account
@@ -53,9 +52,8 @@ public class EmployeeProfile : Entity, IAuditableEntity
     /// </summary>
     public bool CanAccessAllAssignedCompanies { get; private set; } = true;
 
-    // Audit fields inherited from Entity base class:
-    // - CreatedAtUtc, ModifiedAtUtc
-    // - CreatedById, ModifiedById (Guid?)
+    // Audit fields inherited from AuditableEntity:
+    // - CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById
 
     // Navigation property (configured in EF)
     // public Account Account { get; private set; } = null!;
@@ -83,7 +81,7 @@ public class EmployeeProfile : Entity, IAuditableEntity
             PrimaryCompanyId = primaryCompanyId,
             PrimaryDepartmentId = primaryDepartmentId,
             PrimaryPositionId = primaryPositionId
-            // CreatedAtUtc is set automatically by Entity base class constructor
+            // CreatedAtUtc is set automatically by AuditableEntity constructor
         };
     }
 

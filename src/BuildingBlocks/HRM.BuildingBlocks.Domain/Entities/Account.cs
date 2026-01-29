@@ -1,4 +1,3 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
@@ -58,7 +57,7 @@ public enum AccountStatus
 ///
 /// This replaces the separate Operator entity for a unified auth experience.
 /// </summary>
-public class Account : Entity, IAuditableEntity
+public class Account : AuditableEntity
 {
     /// <summary>
     /// Unique username for login
@@ -125,9 +124,8 @@ public class Account : Entity, IAuditableEntity
     /// </summary>
     public DateTime? LockedUntilUtc { get; private set; }
 
-    // Audit fields inherited from Entity base class:
-    // - CreatedAtUtc, ModifiedAtUtc
-    // - CreatedById, ModifiedById (Guid?)
+    // Audit fields inherited from AuditableEntity:
+    // - CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById
 
     // Navigation properties (configured in EF)
     // public SystemProfile? SystemProfile { get; private set; }
@@ -156,7 +154,7 @@ public class Account : Entity, IAuditableEntity
             PhoneNumber = phoneNumber,
             AccountType = AccountType.System,
             Status = AccountStatus.Pending
-            // CreatedAtUtc is set automatically by Entity base class constructor
+            // CreatedAtUtc is set automatically by AuditableEntity constructor
         };
     }
 
@@ -180,7 +178,7 @@ public class Account : Entity, IAuditableEntity
             PhoneNumber = phoneNumber,
             AccountType = AccountType.Employee,
             Status = AccountStatus.Pending
-            // CreatedAtUtc is set automatically by Entity base class constructor
+            // CreatedAtUtc is set automatically by AuditableEntity constructor
         };
     }
 

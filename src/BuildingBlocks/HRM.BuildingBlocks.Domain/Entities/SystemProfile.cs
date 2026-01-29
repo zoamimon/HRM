@@ -1,5 +1,3 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Audit;
-
 namespace HRM.BuildingBlocks.Domain.Entities;
 
 /// <summary>
@@ -12,7 +10,7 @@ namespace HRM.BuildingBlocks.Domain.Entities;
 ///
 /// This separates system-specific data from the authentication entity.
 /// </summary>
-public class SystemProfile : Entity, IAuditableEntity
+public class SystemProfile : AuditableEntity
 {
     /// <summary>
     /// Reference to the Account
@@ -40,9 +38,8 @@ public class SystemProfile : Entity, IAuditableEntity
     /// </summary>
     public string? Notes { get; private set; }
 
-    // Audit fields inherited from Entity base class:
-    // - CreatedAtUtc, ModifiedAtUtc
-    // - CreatedById, ModifiedById (Guid?)
+    // Audit fields inherited from AuditableEntity:
+    // - CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById
 
     // Navigation property (configured in EF)
     // public Account Account { get; private set; } = null!;
@@ -67,7 +64,7 @@ public class SystemProfile : Entity, IAuditableEntity
             IsSuperAdmin = isSuperAdmin,
             Department = department,
             JobTitle = jobTitle
-            // CreatedAtUtc is set automatically by Entity base class constructor
+            // CreatedAtUtc is set automatically by AuditableEntity constructor
         };
     }
 

@@ -31,7 +31,7 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - OperatorRegisteredDomainEvent: Raised when new operator registered
 /// - OperatorActivatedDomainEvent: Raised when operator activated
 /// </summary>
-public sealed class Operator : Entity, IAggregateRoot, IAuthenticatable
+public sealed class Operator : SoftDeletableEntity, IAggregateRoot, IAuthenticatable
 {
     /// <summary>
     /// Unique username for login

@@ -49,7 +49,7 @@ namespace HRM.Modules.Identity.Domain.Entities;
 /// - Indexes: Token (unique), (UserType, PrincipalId), ExpiresAt
 /// - Soft delete: No (hard delete after expiration + grace period)
 /// </summary>
-public sealed class RefreshToken : Entity
+public sealed class RefreshToken : AuditableEntity
 {
     /// <summary>
     /// Type of user that owns this refresh token (Operator, Employee, etc.)
@@ -263,8 +263,8 @@ public sealed class RefreshToken : Entity
             Token = token,
             ExpiresAt = expiresAt,
             CreatedByIp = ipAddress ?? "unknown",
-            UserAgent = userAgent,
-            CreatedAtUtc = DateTime.UtcNow
+            UserAgent = userAgent
+            // CreatedAtUtc is set automatically by AuditableEntity constructor
         };
     }
 
