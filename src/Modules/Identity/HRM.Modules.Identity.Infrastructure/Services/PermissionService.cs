@@ -237,9 +237,23 @@ public sealed class PermissionService : IPermissionService
         ScopeLevel minScope,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(userId))
+        var result = await AuthorizeAsync(userId, permissionKey, minScope, cancellationToken);
+        return result.IsAuthorized;
+    }
+
+    /// <summary>
+    /// Authorize a user for a permission with scope check in a single operation
+    /// Returns both authorization decision and user's scope level
+    /// </summary>
+    public async Task<AuthorizationResult> AuthorizeAsync(
+        string userId,
+        string permissionKey,
+        ScopeLevel minScope,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
         {
-            return false;
+            return AuthorizationResult.Denied("Invalid user ID");
         }
 
         // Super admin has Global scope for all permissions
@@ -248,28 +262,37 @@ public sealed class PermissionService : IPermissionService
             _logger.LogDebug(
                 "Super admin bypass for user {UserId}, permission {PermissionKey}",
                 userId, permissionKey);
-            return true;
+            return AuthorizationResult.Authorized(ScopeLevel.Global);
         }
 
-        // Get user's scope for this permission
-        var userScope = await GetScopeLevelAsync(userId, permissionKey, cancellationToken);
+        // Get all permissions with scopes (single cached call)
+        var permissionsWithScopes = await GetUserPermissionsWithScopesAsync(userId, cancellationToken);
 
-        if (!userScope.HasValue)
+        if (!permissionsWithScopes.TryGetValue(permissionKey, out var userScope))
         {
             _logger.LogDebug(
                 "User {UserId} does not have permission {PermissionKey}",
                 userId, permissionKey);
-            return false;
+            return AuthorizationResult.Denied($"Permission not granted: {permissionKey}");
         }
 
         // Check if user's scope is <= required scope (lower number = wider access)
-        var hasScope = (int)userScope.Value <= (int)minScope;
+        var hasScope = (int)userScope <= (int)minScope;
+
+        if (!hasScope)
+        {
+            _logger.LogDebug(
+                "Scope insufficient for user {UserId}: {PermissionKey} userScope={UserScope} > minScope={MinScope}",
+                userId, permissionKey, userScope, minScope);
+            return AuthorizationResult.Denied(
+                $"Insufficient scope: has {userScope}, requires {minScope}");
+        }
 
         _logger.LogDebug(
-            "Scope check for user {UserId}: {PermissionKey} userScope={UserScope} <= minScope={MinScope} = {Result}",
-            userId, permissionKey, userScope.Value, minScope, hasScope);
+            "Authorized user {UserId}: {PermissionKey} userScope={UserScope} <= minScope={MinScope}",
+            userId, permissionKey, userScope, minScope);
 
-        return hasScope;
+        return AuthorizationResult.Authorized(userScope);
     }
 
     /// <summary>

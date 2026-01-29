@@ -3,6 +3,49 @@ using HRM.BuildingBlocks.Domain.Enums;
 namespace HRM.BuildingBlocks.Application.Abstractions.Authorization;
 
 /// <summary>
+/// Result of a single authorization check
+/// Combines authorization decision and scope in one response
+/// Used to avoid multiple DB queries for permission + scope
+/// </summary>
+public sealed record AuthorizationResult
+{
+    /// <summary>
+    /// Whether the user is authorized
+    /// </summary>
+    public required bool IsAuthorized { get; init; }
+
+    /// <summary>
+    /// User's scope level for this permission (null if not authorized)
+    /// </summary>
+    public ScopeLevel? Scope { get; init; }
+
+    /// <summary>
+    /// Reason for denial (null if authorized)
+    /// </summary>
+    public string? DenialReason { get; init; }
+
+    /// <summary>
+    /// Create an authorized result
+    /// </summary>
+    public static AuthorizationResult Authorized(ScopeLevel scope) => new()
+    {
+        IsAuthorized = true,
+        Scope = scope,
+        DenialReason = null
+    };
+
+    /// <summary>
+    /// Create a denied result
+    /// </summary>
+    public static AuthorizationResult Denied(string reason) => new()
+    {
+        IsAuthorized = false,
+        Scope = null,
+        DenialReason = reason
+    };
+}
+
+/// <summary>
 /// Service for checking user permissions
 ///
 /// Design:
@@ -103,6 +146,24 @@ public interface IPermissionService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if user has the permission with sufficient scope</returns>
     Task<bool> HasPermissionWithScopeAsync(
+        string userId,
+        string permissionKey,
+        ScopeLevel minScope,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Authorize a user for a permission with scope check in a single query
+    /// Returns both authorization decision and user's scope level
+    ///
+    /// Use this method instead of calling HasPermissionWithScopeAsync + GetScopeLevelAsync
+    /// separately to avoid N+1 DB queries
+    /// </summary>
+    /// <param name="userId">User ID (Guid as string)</param>
+    /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
+    /// <param name="minScope">Minimum required scope level</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>AuthorizationResult with IsAuthorized flag and user's Scope</returns>
+    Task<AuthorizationResult> AuthorizeAsync(
         string userId,
         string permissionKey,
         ScopeLevel minScope,

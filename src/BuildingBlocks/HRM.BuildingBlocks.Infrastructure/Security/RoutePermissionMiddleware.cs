@@ -120,18 +120,18 @@ public sealed class RoutePermissionMiddleware
             return;
         }
 
-        // 5. Check if user has permission with required scope
-        var hasPermission = await permissionService.HasPermissionWithScopeAsync(
+        // 5. Authorize user (single call for permission + scope)
+        var authResult = await permissionService.AuthorizeAsync(
             userId,
             routeEntry.Permission,
             routeEntry.MinScope,
             context.RequestAborted);
 
-        if (!hasPermission)
+        if (!authResult.IsAuthorized)
         {
             _logger.LogWarning(
-                "Permission denied for user {UserId}: {Permission} with MinScope {MinScope} on {Method} {Path}",
-                userId, routeEntry.Permission, routeEntry.MinScope, method, path);
+                "Permission denied for user {UserId}: {Permission} with MinScope {MinScope} on {Method} {Path}. Reason: {Reason}",
+                userId, routeEntry.Permission, routeEntry.MinScope, method, path, authResult.DenialReason);
 
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new
@@ -139,7 +139,7 @@ public sealed class RoutePermissionMiddleware
                 type = "https://httpstatuses.io/403",
                 title = "Forbidden",
                 status = 403,
-                detail = $"Permission required: {routeEntry.Permission}",
+                detail = authResult.DenialReason ?? $"Permission required: {routeEntry.Permission}",
                 permission = routeEntry.Permission,
                 minScope = routeEntry.MinScope.ToString()
             });
@@ -147,20 +147,12 @@ public sealed class RoutePermissionMiddleware
         }
 
         _logger.LogDebug(
-            "Permission granted for user {UserId}: {Permission} on {Method} {Path}",
-            userId, routeEntry.Permission, method, path);
+            "Permission granted for user {UserId}: {Permission} (scope={Scope}) on {Method} {Path}",
+            userId, routeEntry.Permission, authResult.Scope, method, path);
 
         // 6. Store the user's scope in HttpContext for use by query filters
-        var userScope = await permissionService.GetScopeLevelAsync(
-            userId,
-            routeEntry.Permission,
-            context.RequestAborted);
-
-        if (userScope.HasValue)
-        {
-            context.Items["CurrentPermission"] = routeEntry.Permission;
-            context.Items["CurrentPermissionScope"] = userScope.Value;
-        }
+        context.Items["CurrentPermission"] = routeEntry.Permission;
+        context.Items["CurrentPermissionScope"] = authResult.Scope!.Value;
 
         await _next(context);
     }
