@@ -41,7 +41,7 @@ namespace HRM.BuildingBlocks.Domain.Outbox;
 /// - After max retries, message moved to dead letter queue
 /// - Manual intervention required for dead letter messages
 /// </summary>
-public sealed class OutboxMessage : Entity, IAggregateRoot
+public sealed class OutboxMessage : AuditableEntity, IAggregateRoot
 {
     /// <summary>
     /// Full type name of the integration event

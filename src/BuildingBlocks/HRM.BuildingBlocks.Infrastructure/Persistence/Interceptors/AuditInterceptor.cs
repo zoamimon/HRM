@@ -94,6 +94,9 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
     /// Update audit fields for all added and modified entities
     /// - Added entities: Set CreatedById
     /// - Modified entities: Set ModifiedAtUtc and ModifiedById
+    ///
+    /// Note: Only AuditableEntity (and its descendants) have audit fields.
+    /// Plain Entity (minimal) does not have audit capabilities.
     /// </summary>
     /// <param name="context">DbContext with tracked entities</param>
     private void UpdateAuditFields(DbContext? context)
@@ -118,9 +121,10 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
             }
         }
 
-        // Get all added and modified entities
+        // Get all added and modified AuditableEntity instances
+        // Note: Only AuditableEntity has audit fields, not Entity
         var entries = context.ChangeTracker
-            .Entries<Entity>()
+            .Entries<AuditableEntity>()
             .Where(entry => entry.State == EntityState.Added ||
                            entry.State == EntityState.Modified);
 
@@ -133,7 +137,7 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
                 {
                     entry.Entity.SetCreatedBy(currentUserId.Value);
                 }
-                // CreatedAtUtc already set in Entity constructor
+                // CreatedAtUtc already set in AuditableEntity constructor
             }
             else if (entry.State == EntityState.Modified)
             {
