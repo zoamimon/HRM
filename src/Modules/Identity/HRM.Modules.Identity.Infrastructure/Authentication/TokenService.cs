@@ -154,12 +154,13 @@ public sealed class TokenService : ITokenService
             new(ClaimTypes.Name, authenticatable.GetUsername()),
             new(ClaimTypes.Email, authenticatable.GetEmail()),
 
-            // Custom claims
-            new("UserType", authenticatable.GetUserType().ToString())
+            // Custom claims - include both for backward compatibility during migration
+            new("AccountType", authenticatable.GetAccountType().ToString()),
+            new("UserType", authenticatable.GetAccountType().ToString()) // Keep for backward compatibility
         };
 
-        // Add UserType-specific claims
-        if (authenticatable.GetUserType() == UserType.User)
+        // Add AccountType-specific claims
+        if (authenticatable.GetAccountType() == AccountType.Employee)
         {
             // For Users, add ScopeLevel and EmployeeId
             // These need to be retrieved from the User entity

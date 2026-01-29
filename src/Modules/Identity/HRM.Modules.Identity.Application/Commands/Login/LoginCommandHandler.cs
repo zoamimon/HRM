@@ -136,7 +136,7 @@ public sealed class LoginCommandHandler
 
         // 8. Store refresh token in database
         var refreshTokenEntity = Domain.Entities.RefreshToken.Create(
-            UserType.Operator,      // Polymorphic design: specify user type
+            AccountType.System,     // System account (Operator)
             @operator.Id,           // Operator ID becomes PrincipalId
             refreshToken,
             refreshTokenExpiry,

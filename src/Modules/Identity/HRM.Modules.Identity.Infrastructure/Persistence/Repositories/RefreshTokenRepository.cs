@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Repositories;
@@ -70,7 +71,7 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     }
 
     /// <summary>
-    /// Get refresh token by token string and principal (user type + ID)
+    /// Get refresh token by token string and principal (account type + ID)
     /// Returns null if not found or doesn't belong to principal
     ///
     /// Security:
@@ -84,10 +85,12 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// </summary>
     public async Task<RefreshToken?> GetByTokenAndPrincipalAsync(
         string token,
-        UserType userType,
+        AccountType accountType,
         Guid principalId,
         CancellationToken cancellationToken = default)
     {
+#pragma warning disable CS0618 // Using obsolete UserType for DB query
+        var userType = accountType.ToUserType();
         return await _context.RefreshTokens
             .FirstOrDefaultAsync(
                 rt => rt.Token == token &&
@@ -95,7 +98,23 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
                       rt.PrincipalId == principalId,
                 cancellationToken
             );
+#pragma warning restore CS0618
     }
+
+    /// <summary>
+    /// Get refresh token by token string and principal (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetByTokenAndPrincipalAsync(string, AccountType, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618 // UserType is obsolete
+    public async Task<RefreshToken?> GetByTokenAndPrincipalAsync(
+        string token,
+        UserType userType,
+        Guid principalId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetByTokenAndPrincipalAsync(token, userType.ToAccountType(), principalId, cancellationToken);
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get all active sessions for a principal (except specified token)
@@ -123,11 +142,13 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// </code>
     /// </summary>
     public async Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
-        UserType userType,
+        AccountType accountType,
         Guid principalId,
         Guid exceptTokenId,
         CancellationToken cancellationToken = default)
     {
+#pragma warning disable CS0618 // Using obsolete UserType for DB query
+        var userType = accountType.ToUserType();
         return await _context.RefreshTokens
             .Where(rt =>
                 rt.UserType == userType &&
@@ -136,7 +157,23 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
                 rt.RevokedAt == null &&
                 rt.ExpiresAt > DateTime.UtcNow)
             .ToListAsync(cancellationToken);
+#pragma warning restore CS0618
     }
+
+    /// <summary>
+    /// Get active sessions except specified (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetActiveSessionsExceptAsync(AccountType, Guid, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618 // UserType is obsolete
+    public async Task<List<RefreshToken>> GetActiveSessionsExceptAsync(
+        UserType userType,
+        Guid principalId,
+        Guid exceptTokenId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetActiveSessionsExceptAsync(userType.ToAccountType(), principalId, exceptTokenId, cancellationToken);
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Get all active sessions for a principal
@@ -163,10 +200,12 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
     /// </code>
     /// </summary>
     public async Task<List<RefreshToken>> GetActiveSessionsAsync(
-        UserType userType,
+        AccountType accountType,
         Guid principalId,
         CancellationToken cancellationToken = default)
     {
+#pragma warning disable CS0618 // Using obsolete UserType for DB query
+        var userType = accountType.ToUserType();
         return await _context.RefreshTokens
             .Where(rt =>
                 rt.UserType == userType &&
@@ -175,7 +214,22 @@ internal sealed class RefreshTokenRepository : IRefreshTokenRepository
                 rt.ExpiresAt > DateTime.UtcNow)
             .OrderByDescending(rt => rt.CreatedAtUtc)
             .ToListAsync(cancellationToken);
+#pragma warning restore CS0618
     }
+
+    /// <summary>
+    /// Get active sessions (deprecated - use AccountType overload).
+    /// </summary>
+    [Obsolete("Use GetActiveSessionsAsync(AccountType, Guid, CancellationToken) instead")]
+#pragma warning disable CS0618 // UserType is obsolete
+    public async Task<List<RefreshToken>> GetActiveSessionsAsync(
+        UserType userType,
+        Guid principalId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetActiveSessionsAsync(userType.ToAccountType(), principalId, cancellationToken);
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Add new refresh token to repository

@@ -333,58 +333,79 @@ public interface IDataScopingService
 public sealed class DataScopeContext
 {
     /// <summary>
-    /// Type of user (Operator or User).
-    /// Operators have global access, Users have scoped access.
+    /// Type of account (System or Employee).
+    /// System accounts have global access, Employee accounts have scoped access.
     /// </summary>
-    public required UserType UserType { get; init; }
+    public required AccountType AccountType { get; init; }
+
+    /// <summary>
+    /// Type of user (deprecated - use AccountType instead).
+    /// Kept for backward compatibility during migration.
+    /// </summary>
+    [Obsolete("Use AccountType instead")]
+#pragma warning disable CS0618 // AccountType.ToUserType() uses obsolete UserType
+    public UserType UserType => AccountType.ToUserType();
+#pragma warning restore CS0618
 
     /// <summary>
     /// Current user's identifier.
-    /// For Operators: OperatorId
-    /// For Users: UserId (same as EmployeeId)
+    /// For System accounts: OperatorId
+    /// For Employee accounts: UserId (same as EmployeeId)
     /// </summary>
     public required Guid UserId { get; init; }
 
     /// <summary>
-    /// User's scope level (null for Operators).
+    /// User's scope level (null for System accounts).
     /// Determines granularity of data access.
     /// </summary>
     public ScopeLevel? ScopeLevel { get; init; }
 
     /// <summary>
     /// List of company IDs user can access.
-    /// Empty for Operators (access all companies).
-    /// Populated for Users based on active assignments.
+    /// Empty for System accounts (access all companies).
+    /// Populated for Employee accounts based on active assignments.
     /// </summary>
     public List<Guid> AllowedCompanyIds { get; init; } = new();
 
     /// <summary>
     /// List of department IDs user can access.
-    /// Empty for Operators and Company-level users.
+    /// Empty for System accounts and Company-level users.
     /// Populated for Department/Position/Employee level users.
     /// </summary>
     public List<Guid> AllowedDepartmentIds { get; init; } = new();
 
     /// <summary>
     /// List of position IDs user can access.
-    /// Empty for Operators and Company/Department-level users.
+    /// Empty for System accounts and Company/Department-level users.
     /// Populated for Position-level users.
     /// </summary>
     public List<Guid> AllowedPositionIds { get; init; } = new();
 
     /// <summary>
-    /// Checks if user is an Operator (global access).
+    /// Checks if user is a System account (global access).
     /// </summary>
-    public bool IsOperator => UserType == UserType.Operator;
+    public bool IsSystemAccount => AccountType == AccountType.System;
 
     /// <summary>
-    /// Checks if user is a regular User (scoped access).
+    /// Checks if user is an Operator (deprecated - use IsSystemAccount).
     /// </summary>
-    public bool IsUser => UserType == UserType.User;
+    [Obsolete("Use IsSystemAccount instead")]
+    public bool IsOperator => IsSystemAccount;
+
+    /// <summary>
+    /// Checks if user is an Employee account (scoped access).
+    /// </summary>
+    public bool IsEmployeeAccount => AccountType == AccountType.Employee;
+
+    /// <summary>
+    /// Checks if user is a regular User (deprecated - use IsEmployeeAccount).
+    /// </summary>
+    [Obsolete("Use IsEmployeeAccount instead")]
+    public bool IsUser => IsEmployeeAccount;
 
     /// <summary>
     /// Checks if any scoping should be applied.
-    /// False for Operators, true for Users.
+    /// False for System accounts, true for Employee accounts.
     /// </summary>
-    public bool RequiresScoping => UserType == UserType.User;
+    public bool RequiresScoping => AccountType == AccountType.Employee;
 }

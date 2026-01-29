@@ -97,8 +97,8 @@ public sealed class RefreshTokenCommandHandler
                 AuthenticationErrors.RefreshTokenExpired());
         }
 
-        // 3. Verify token is for Operator (polymorphic design)
-        if (existingToken.UserType != UserType.Operator)
+        // 3. Verify token is for System account (Operator)
+        if (existingToken.AccountType != AccountType.System)
         {
             return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidRefreshToken());
@@ -149,7 +149,7 @@ public sealed class RefreshTokenCommandHandler
 
         // 10. Store new refresh token with polymorphic design
         var newRefreshTokenEntity = Domain.Entities.RefreshToken.Create(
-            UserType.Operator,      // Polymorphic design: specify user type
+            AccountType.System,     // System account (Operator)
             @operator.Id,           // Operator ID becomes PrincipalId
             newRefreshToken,
             newRefreshTokenExpiry,

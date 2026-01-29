@@ -49,7 +49,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
         // 1. Verify current token exists and belongs to operator
         var currentToken = await _refreshTokenRepository.GetByTokenAndPrincipalAsync(
             request.CurrentRefreshToken,
-            UserType.Operator,      // Polymorphic design: specify user type
+            AccountType.System,     // System account (Operator)
             request.OperatorId,
             cancellationToken);
 
@@ -61,7 +61,7 @@ public sealed class RevokeAllSessionsExceptCurrentCommandHandler
 
         // 2. Find all active sessions for operator (except current)
         var sessionsToRevoke = await _refreshTokenRepository.GetActiveSessionsExceptAsync(
-            UserType.Operator,      // Polymorphic design: specify user type
+            AccountType.System,     // System account (Operator)
             request.OperatorId,
             currentToken.Id,
             cancellationToken);

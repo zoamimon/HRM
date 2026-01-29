@@ -63,12 +63,14 @@ public sealed class DataScopingService : IDataScopingService
             );
         }
 
+#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
         if (_currentUserService.IsOperator())
+#pragma warning restore CS0618
         {
-            // Operators have global access (no scoping)
+            // System accounts have global access (no scoping)
             _cachedScopeContext = new DataScopeContext
             {
-                UserType = UserType.Operator,
+                AccountType = AccountType.System,
                 UserId = _currentUserService.UserId,
                 ScopeLevel = null,
                 AllowedCompanyIds = new List<Guid>(),
@@ -96,7 +98,7 @@ public sealed class DataScopingService : IDataScopingService
         // Build allowed IDs based on scope level
         var context = new DataScopeContext
         {
-            UserType = UserType.User,
+            AccountType = AccountType.Employee,
             UserId = _currentUserService.UserId,
             ScopeLevel = scopeLevel,
             AllowedCompanyIds = assignments.Select(a => a.CompanyId).Distinct().ToList(),
@@ -132,8 +134,10 @@ public sealed class DataScopingService : IDataScopingService
             throw new ArgumentNullException(nameof(parameters));
         }
 
-        // Operators: No filtering
+        // System accounts: No filtering
+#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
         if (scopeContext.IsOperator)
+#pragma warning restore CS0618
         {
             return string.Empty;
         }
@@ -166,8 +170,10 @@ public sealed class DataScopingService : IDataScopingService
             throw new ArgumentNullException(nameof(scopeContext));
         }
 
-        // Operators can access all employees
+        // System accounts can access all employees
+#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
         if (scopeContext.IsOperator)
+#pragma warning restore CS0618
         {
             return true;
         }

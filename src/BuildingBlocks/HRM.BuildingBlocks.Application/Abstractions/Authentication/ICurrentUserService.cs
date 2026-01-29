@@ -257,39 +257,53 @@ public interface ICurrentUserService
     bool IsInRole(string role);
 
     /// <summary>
-    /// Checks if the current user is an Operator.
+    /// Checks if the current user is a System account (operator/admin).
     /// Convenience method for common authorization check.
-    /// 
+    ///
     /// Usage:
     /// <code>
-    /// if (_currentUser.IsOperator())
+    /// if (_currentUser.IsSystemAccount())
     /// {
-    ///     // Operators have global access
+    ///     // System accounts have global access
     ///     // No data scoping needed
     /// }
     /// else
     /// {
-    ///     // Users need data scoping applied
+    ///     // Employee accounts need data scoping applied
     ///     await _dataScopingService.ApplyScopingAsync(query);
     /// }
     /// </code>
     /// </summary>
-    /// <returns>True if user is an Operator, false otherwise</returns>
-    bool IsOperator();
+    /// <returns>True if user is a System account, false otherwise</returns>
+    bool IsSystemAccount();
 
     /// <summary>
-    /// Checks if the current user is a regular User (employee).
+    /// Checks if the current user is an Employee account.
     /// Convenience method for common authorization check.
-    /// 
+    ///
     /// Usage:
     /// <code>
-    /// if (_currentUser.IsUser())
+    /// if (_currentUser.IsEmployeeAccount())
     /// {
     ///     // Apply data scoping based on ScopeLevel
     ///     var scopeContext = await _dataScopingService.GetCurrentScopeAsync();
     /// }
     /// </code>
     /// </summary>
+    /// <returns>True if user is an Employee account, false otherwise</returns>
+    bool IsEmployeeAccount();
+
+    /// <summary>
+    /// Checks if the current user is an Operator (deprecated - use IsSystemAccount).
+    /// </summary>
+    /// <returns>True if user is an Operator, false otherwise</returns>
+    [Obsolete("Use IsSystemAccount() instead")]
+    bool IsOperator();
+
+    /// <summary>
+    /// Checks if the current user is a regular User (deprecated - use IsEmployeeAccount).
+    /// </summary>
     /// <returns>True if user is a User (employee), false otherwise</returns>
+    [Obsolete("Use IsEmployeeAccount() instead")]
     bool IsUser();
 }

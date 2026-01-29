@@ -53,8 +53,8 @@ public sealed class RevokeSessionCommandHandler
             return Result.Failure(SessionErrors.NotFound());
         }
 
-        // Security: Verify session belongs to current operator (polymorphic design)
-        if (session.UserType != UserType.Operator || session.PrincipalId != request.OperatorId)
+        // Security: Verify session belongs to current operator (System account)
+        if (session.AccountType != AccountType.System || session.PrincipalId != request.OperatorId)
         {
             return Result.Failure(SessionErrors.UnauthorizedAccess());
         }
