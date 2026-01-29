@@ -1,3 +1,4 @@
+using HRM.BuildingBlocks.Domain.Abstractions.Audit;
 using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Entities;
@@ -11,9 +12,16 @@ namespace HRM.BuildingBlocks.Domain.Entities;
 /// - SystemProfile: Additional data for System accounts (roles, permissions)
 /// - EmployeeProfile: Link to Employee entity for Employee accounts
 ///
+/// Security Audit:
+/// This entity implements ISecurityAuditable for compliance-level tracking:
+/// - PasswordChangedAtUtc: When password was last changed
+/// - LastFailedLoginAtUtc: When last failed login occurred
+/// - TwoFactorChangedAtUtc: When 2FA was enabled/disabled
+/// - StatusChangedAtUtc: When account status was changed
+///
 /// This replaces the separate Operator entity for a unified auth experience.
 /// </summary>
-public class Account : AuditableEntity
+public class Account : AuditableEntity, ISecurityAuditable
 {
     /// <summary>
     /// Unique username for login
@@ -79,6 +87,34 @@ public class Account : AuditableEntity
     /// Account lockout expiry (null if not locked)
     /// </summary>
     public DateTime? LockedUntilUtc { get; private set; }
+
+    #region ISecurityAuditable
+
+    /// <summary>
+    /// When the password was last changed (UTC).
+    /// NULL if password never changed since account creation.
+    /// </summary>
+    public DateTime? PasswordChangedAtUtc { get; private set; }
+
+    /// <summary>
+    /// When the last failed login attempt occurred (UTC).
+    /// Used for brute force detection and security monitoring.
+    /// </summary>
+    public DateTime? LastFailedLoginAtUtc { get; private set; }
+
+    /// <summary>
+    /// When two-factor authentication was last enabled or disabled (UTC).
+    /// Tracks security posture changes.
+    /// </summary>
+    public DateTime? TwoFactorChangedAtUtc { get; private set; }
+
+    /// <summary>
+    /// When the account status was last changed (UTC).
+    /// Tracks activation, suspension, deactivation events.
+    /// </summary>
+    public DateTime? StatusChangedAtUtc { get; private set; }
+
+    #endregion
 
     // Audit fields inherited from AuditableEntity:
     // - CreatedAtUtc, ModifiedAtUtc, CreatedById, ModifiedById
@@ -148,6 +184,7 @@ public class Account : AuditableEntity
 
         Status = AccountStatus.Active;
         ActivatedAtUtc = DateTime.UtcNow;
+        StatusChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
@@ -156,7 +193,11 @@ public class Account : AuditableEntity
     /// </summary>
     public void Suspend()
     {
+        if (Status == AccountStatus.Suspended)
+            return;
+
         Status = AccountStatus.Suspended;
+        StatusChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
@@ -165,7 +206,11 @@ public class Account : AuditableEntity
     /// </summary>
     public void Deactivate()
     {
+        if (Status == AccountStatus.Deactivated)
+            return;
+
         Status = AccountStatus.Deactivated;
+        StatusChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
@@ -186,6 +231,7 @@ public class Account : AuditableEntity
     public void RecordFailedLogin(int maxAttempts = 5, int lockoutMinutes = 30)
     {
         FailedLoginAttempts++;
+        LastFailedLoginAtUtc = DateTime.UtcNow;
 
         if (FailedLoginAttempts >= maxAttempts)
         {
@@ -236,6 +282,7 @@ public class Account : AuditableEntity
     public void UpdatePassword(string newPasswordHash)
     {
         PasswordHash = newPasswordHash;
+        PasswordChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
@@ -256,6 +303,7 @@ public class Account : AuditableEntity
     {
         IsTwoFactorEnabled = true;
         TwoFactorSecretKey = secretKey;
+        TwoFactorChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
@@ -266,6 +314,7 @@ public class Account : AuditableEntity
     {
         IsTwoFactorEnabled = false;
         TwoFactorSecretKey = null;
+        TwoFactorChangedAtUtc = DateTime.UtcNow;
         MarkAsModified();
     }
 
