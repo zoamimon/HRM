@@ -11,11 +11,11 @@ using Microsoft.Extensions.Options;
 namespace HRM.Modules.Identity.Application.Commands.Login;
 
 /// <summary>
-/// Handler for LoginCommand
-/// Authenticates operator and generates JWT access + refresh tokens
+/// Handler for LoginCommand.
+/// Authenticates via Account entity (unified login) and generates JWT access + refresh tokens.
 ///
 /// Dependencies:
-/// - IOperatorRepository: Find operator by username/email
+/// - IAccountRepository: Find account by username/email
 /// - IPasswordHasher: Verify password against stored hash
 /// - ITokenService: Generate JWT and refresh tokens
 /// - JwtOptions: Get token expiry configuration
@@ -23,39 +23,28 @@ namespace HRM.Modules.Identity.Application.Commands.Login;
 ///
 /// Security Features:
 /// - Constant-time password comparison (via BCrypt)
-/// - Account lockout after 5 failed attempts (15 minutes)
+/// - Account lockout after failed attempts
 /// - Generic error messages (prevent enumeration)
 /// - IP and UserAgent tracking
 /// - Remember Me support (7 vs 30 days)
-///
-/// Performance:
-/// - Single database query to find operator
-/// - Password hashing is slow by design (~100-200ms)
-/// - Token generation is fast (~1-2ms)
-///
-/// Error Handling:
-/// - Invalid credentials → 401 Unauthorized
-/// - Account locked → 403 Forbidden
-/// - Account not active → 403 Forbidden
-/// - Other errors → Propagated to caller
 /// </summary>
 public sealed class LoginCommandHandler
     : IRequestHandler<LoginCommand, Result<LoginResponse>>
 {
-    private readonly IOperatorRepository _operatorRepository;
+    private readonly IAccountRepository _accountRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
 
     public LoginCommandHandler(
-        IOperatorRepository operatorRepository,
+        IAccountRepository accountRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
         IRefreshTokenRepository refreshTokenRepository)
     {
-        _operatorRepository = operatorRepository;
+        _accountRepository = accountRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
@@ -66,27 +55,29 @@ public sealed class LoginCommandHandler
         LoginCommand request,
         CancellationToken cancellationToken)
     {
-        // 1. Find operator by username or email
-        var @operator = await FindOperatorAsync(request.UsernameOrEmail, cancellationToken);
+        // 1. Find account by username or email
+        var account = await FindAccountAsync(request.UsernameOrEmail, cancellationToken);
 
-        if (@operator is null)
+        if (account is null)
         {
-            // Don't reveal that user doesn't exist (security)
             return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidCredentials());
         }
 
-        // 2. Check if account is locked
-        if (@operator.IsLocked())
+        // 2. Try auto-unlock expired lockouts
+        account.TryUnlock();
+
+        // 3. Check if account is locked
+        if (account.IsLocked())
         {
             return Result.Failure<LoginResponse>(
-                AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
+                AuthenticationErrors.AccountLockedOut(account.LockedUntilUtc));
         }
 
-        // 3. Check account status
-        if (@operator.Status != OperatorStatus.Active)
+        // 4. Check account status
+        if (!account.CanLogin())
         {
-            if (@operator.Status == OperatorStatus.Suspended)
+            if (account.Status == AccountStatus.Suspended)
             {
                 return Result.Failure<LoginResponse>(
                     AuthenticationErrors.AccountSuspended());
@@ -96,37 +87,34 @@ public sealed class LoginCommandHandler
                 AuthenticationErrors.AccountNotActive());
         }
 
-        // 4. Verify password
+        // 5. Verify password
         bool isPasswordValid = _passwordHasher.VerifyPassword(
             request.Password,
-            @operator.PasswordHash);
+            account.PasswordHash);
 
         if (!isPasswordValid)
         {
-            // Record failed login attempt and potentially lock account
-            @operator.RecordFailedLogin();
-            _operatorRepository.Update(@operator);
+            account.RecordFailedLogin();
+            _accountRepository.Update(account);
 
-            // Check if account got locked after this failed attempt
-            if (@operator.IsLocked())
+            if (account.IsLocked())
             {
                 return Result.Failure<LoginResponse>(
-                    AuthenticationErrors.AccountLockedOut(@operator.LockedUntilUtc));
+                    AuthenticationErrors.AccountLockedOut(account.LockedUntilUtc));
             }
 
-            // Generic error (don't reveal password was wrong)
             return Result.Failure<LoginResponse>(
                 AuthenticationErrors.InvalidCredentials());
         }
 
-        // 5. Password correct - reset failed attempts and update last login
-        @operator.RecordLogin();
-        _operatorRepository.Update(@operator);
+        // 6. Password correct — reset failed attempts, record login
+        account.RecordLogin();
+        _accountRepository.Update(account);
 
-        // 6. Generate access token (JWT)
-        var accessTokenResult = _tokenService.GenerateAccessToken(@operator);
+        // 7. Generate access token (JWT)
+        var accessTokenResult = _tokenService.GenerateAccessToken(account);
 
-        // 7. Generate refresh token with Remember Me support
+        // 8. Generate refresh token with Remember Me support
         var refreshExpiryDays = request.RememberMe
             ? _jwtOptions.RememberMeExpiryDays
             : _jwtOptions.RefreshTokenExpiryDays;
@@ -134,10 +122,10 @@ public sealed class LoginCommandHandler
         var refreshTokenExpiry = DateTime.UtcNow.AddDays(refreshExpiryDays);
         var refreshToken = _tokenService.GenerateRefreshToken(refreshTokenExpiry);
 
-        // 8. Store refresh token in database
-        var refreshTokenEntity = Domain.Entities.RefreshToken.Create(
-            AccountType.System,     // System account (Operator)
-            @operator.Id,           // Operator ID becomes PrincipalId
+        // 9. Store refresh token
+        var refreshTokenEntity = RefreshToken.Create(
+            account.AccountType,
+            account.Id,
             refreshToken,
             refreshTokenExpiry,
             request.IpAddress,
@@ -147,7 +135,7 @@ public sealed class LoginCommandHandler
         _refreshTokenRepository.Add(refreshTokenEntity);
         // UnitOfWorkBehavior will commit
 
-        // 9. Build and return response
+        // 10. Build and return response
         var response = new LoginResponse
         {
             AccessToken = accessTokenResult.Token,
@@ -156,10 +144,10 @@ public sealed class LoginCommandHandler
             RefreshTokenExpiry = refreshTokenExpiry,
             User = new UserInfo
             {
-                Id = @operator.Id,
-                Username = @operator.Username,
-                Email = @operator.Email,
-                FullName = @operator.FullName
+                Id = account.Id,
+                Username = account.Username,
+                Email = account.Email,
+                FullName = account.FullName
             }
         };
 
@@ -167,36 +155,19 @@ public sealed class LoginCommandHandler
     }
 
     /// <summary>
-    /// Find operator by username or email
-    /// Flexible login - user can provide either
-    ///
-    /// Strategy:
-    /// 1. Try username first (most common)
-    /// 2. If not found, try email
-    /// 3. Return null if neither found
-    ///
-    /// Performance:
-    /// - Indexed columns (fast lookup)
-    /// - Max 2 database queries
-    /// - Usually just 1 query (username is common)
+    /// Find account by username or email (flexible login).
     /// </summary>
-    private async Task<Operator?> FindOperatorAsync(
+    private async Task<Account?> FindAccountAsync(
         string usernameOrEmail,
         CancellationToken cancellationToken)
     {
-        // Try username first
-        var @operator = await _operatorRepository.GetByUsernameAsync(
-            usernameOrEmail,
-            cancellationToken);
+        var account = await _accountRepository.GetByUsernameAsync(
+            usernameOrEmail, cancellationToken);
 
-        if (@operator is not null)
-        {
-            return @operator;
-        }
+        if (account is not null)
+            return account;
 
-        // Try email if username not found
-        return await _operatorRepository.GetByEmailAsync(
-            usernameOrEmail,
-            cancellationToken);
+        return await _accountRepository.GetByEmailAsync(
+            usernameOrEmail, cancellationToken);
     }
 }

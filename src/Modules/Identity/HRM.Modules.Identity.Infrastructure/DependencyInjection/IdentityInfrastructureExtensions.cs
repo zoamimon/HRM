@@ -115,6 +115,7 @@ public static class IdentityInfrastructureExtensions
 
         // 2. Register Repositories
         // Scoped: One instance per HTTP request
+        services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IOperatorRepository, OperatorRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 

@@ -21,7 +21,8 @@ namespace HRM.Modules.Identity.Infrastructure.Persistence;
 /// - Query handlers can access DbSets without referencing Infrastructure
 ///
 /// Tables:
-/// - Identity.Operators: Operator accounts
+/// - Identity.Accounts: Unified authentication accounts (primary login entity)
+/// - Identity.Operators: Legacy operator accounts (being replaced by Account)
 /// - Identity.OutboxMessages: Integration events for reliable publishing
 ///
 /// Schema Separation:
@@ -65,15 +66,18 @@ public sealed class IdentityDbContext : ModuleDbContext, IIdentityQueryContext
     public override string ModuleName => "Identity";
 
     /// <summary>
-    /// Operators table
-    /// Contains operator accounts (username, email, password, etc.)
+    /// Accounts table — unified authentication entity (System + Employee).
+    /// Primary entity for login flow.
+    /// </summary>
+    public DbSet<Account> Accounts => Set<Account>();
+
+    /// <summary>
+    /// Operators table (LEGACY — being replaced by Account).
     /// </summary>
     public DbSet<Operator> Operators => Set<Operator>();
 
     /// <summary>
-    /// Refresh tokens table
-    /// Contains refresh tokens for JWT authentication and session management
-    /// Enables multi-device sessions, token revocation, and security audit trail
+    /// Refresh tokens table for session management.
     /// </summary>
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 

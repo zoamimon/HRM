@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using HRM.Modules.Identity.Domain.Abstractions.Authentication;
+using HRM.Modules.Identity.Domain.Entities;
 using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Configuration;
@@ -105,75 +105,45 @@ public sealed class TokenService : ITokenService
     }
 
     /// <summary>
-    /// Generate JWT access token for authenticated user
-    ///
-    /// Token Structure:
-    /// - Header: Algorithm (HS256), Type (JWT)
-    /// - Payload: Claims (see below)
-    /// - Signature: HMAC-SHA256(header + payload, secretKey)
+    /// Generate JWT access token for an Account entity.
+    /// Works directly with Account — no interface indirection.
     ///
     /// Claims Included:
-    /// - sub: User ID (NameIdentifier)
+    /// - sub: Account ID (NameIdentifier)
     /// - name: Username
     /// - email: Email address
-    /// - UserType: "Operator" or "User"
-    /// - Roles: Comma-separated (if applicable)
-    /// - ScopeLevel: Data visibility level (Users only)
-    /// - EmployeeId: Employee identifier (Users only)
+    /// - AccountType: System or Employee
     /// - jti: Unique token identifier
     /// - iat: Issued at timestamp
     /// - exp: Expiration timestamp
-    /// - iss: Issuer (from config)
-    /// - aud: Audience (from config)
-    ///
-    /// Expiration:
-    /// - Set to current time + AccessTokenExpiryMinutes
-    /// - Default: 15 minutes
-    /// - Client should refresh before expiration
+    /// - iss/aud: From config
     /// </summary>
-    public AccessTokenResult GenerateAccessToken(IAuthenticatable authenticatable)
+    public AccessTokenResult GenerateAccessToken(Account account)
     {
-        if (authenticatable is null)
-        {
-            throw new ArgumentNullException(nameof(authenticatable));
-        }
+        ArgumentNullException.ThrowIfNull(account);
 
-        // Calculate expiration time
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpiryMinutes);
 
-        // Create claims
         var claims = new List<Claim>
         {
             // Standard JWT claims
-            new(JwtRegisteredClaimNames.Sub, authenticatable.Id.ToString()),
+            new(JwtRegisteredClaimNames.Sub, account.Id.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
 
             // User information claims
-            new(ClaimTypes.NameIdentifier, authenticatable.Id.ToString()),
-            new(ClaimTypes.Name, authenticatable.GetUsername()),
-            new(ClaimTypes.Email, authenticatable.GetEmail()),
+            new(ClaimTypes.NameIdentifier, account.Id.ToString()),
+            new(ClaimTypes.Name, account.Username),
+            new(ClaimTypes.Email, account.Email),
 
-            // Custom claims - include both for backward compatibility during migration
-            new("AccountType", authenticatable.GetAccountType().ToString()),
-            new("UserType", authenticatable.GetAccountType().ToString()) // Keep for backward compatibility
+            // Account type
+            new("AccountType", account.AccountType.ToString())
         };
-
-        // Add AccountType-specific claims
-        if (authenticatable.GetAccountType() == AccountType.Employee)
-        {
-            // For Users, add ScopeLevel and EmployeeId
-            // These need to be retrieved from the User entity
-            // Assuming authenticatable is actually a User instance
-            // This is a simplification - in real implementation, you'd cast or use additional properties
-            AddUserSpecificClaims(claims, authenticatable);
-        }
 
         // Create signing credentials
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Create token descriptor
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
@@ -183,7 +153,6 @@ public sealed class TokenService : ITokenService
             SigningCredentials = credentials
         };
 
-        // Generate token
         var token = _tokenHandler.CreateToken(tokenDescriptor);
         var tokenString = _tokenHandler.WriteToken(token);
 
@@ -192,36 +161,6 @@ public sealed class TokenService : ITokenService
             Token = tokenString,
             ExpiresAt = expiresAt
         };
-    }
-
-    /// <summary>
-    /// Add User-specific claims (ScopeLevel, EmployeeId)
-    /// This is a helper method to add claims that only apply to Users
-    ///
-    /// Note: In a real implementation, the User entity would have additional
-    /// properties or methods to retrieve ScopeLevel and EmployeeId.
-    /// For now, this is a placeholder that shows the pattern.
-    /// </summary>
-    private void AddUserSpecificClaims(List<Claim> claims, IAuthenticatable authenticatable)
-    {
-        // In real implementation, cast to User type and get specific properties
-        // For now, this is a placeholder showing the structure
-
-        // Example (pseudo-code):
-        // if (authenticatable is User user)
-        // {
-        //     claims.Add(new Claim("ScopeLevel", user.GetScopeLevel().ToString()));
-        //     claims.Add(new Claim("EmployeeId", user.GetEmployeeId().ToString()));
-        //
-        //     var roles = user.GetRoles();
-        //     if (roles?.Any() == true)
-        //     {
-        //         claims.Add(new Claim("Roles", string.Join(",", roles)));
-        //     }
-        // }
-
-        // TODO: Implement this when User entity is available
-        // For now, add placeholder claims for testing
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-using HRM.Modules.Identity.Domain.Abstractions.Authentication;
+using HRM.Modules.Identity.Domain.Entities;
 
 namespace HRM.Modules.Identity.Application.Abstractions.Authentication;
 
@@ -274,9 +274,9 @@ public interface ITokenService
     /// Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     /// </code>
     /// </summary>
-    /// <param name="authenticatable">User or Operator entity implementing IAuthenticatable</param>
+    /// <param name="account">Account entity to generate token for</param>
     /// <returns>Access token with expiration time</returns>
-    AccessTokenResult GenerateAccessToken(IAuthenticatable authenticatable);
+    AccessTokenResult GenerateAccessToken(Account account);
 
     /// <summary>
     /// Generates a cryptographically secure random refresh token.
