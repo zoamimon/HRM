@@ -1,6 +1,4 @@
 using HRM.BuildingBlocks.Application.Abstractions.Authorization;
-using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Domain.Repositories;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -8,25 +6,19 @@ using Microsoft.Extensions.Logging;
 namespace HRM.Modules.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Implementation of IPermissionService for Identity module
+/// Implementation of IPermissionService (pure Identity concern).
 ///
 /// Design:
-/// - Queries permissions from database via IOperatorPermissionRepository
-/// - Caches permissions for performance (5 minutes TTL)
-/// - Super admin bypass via "System Administrator" role
-///
-/// Permission Model:
-/// - Operators have Roles (via OperatorRoles junction table)
-/// - Roles have Permissions (via RolePermissions table)
-/// - Permission = Module.Entity.Action
+/// - ONLY answers "does this user have this permission?" (action-based)
+/// - Does NOT know about ScopeLevel, Company, Department (data scope)
+/// - Data scope is a separate concern handled by IDataScopeService (business module)
 ///
 /// Data Flow:
-/// Operator -> OperatorRoles -> Roles -> RolePermissions
+/// Operator -> OperatorRoles -> Roles -> RolePermissions -> Permission key
 ///
-/// Caching Strategy:
+/// Caching:
 /// - User permissions cached for 5 minutes
 /// - Super admin status cached for 5 minutes
-/// - Call InvalidateCache() when roles/permissions change
 /// </summary>
 public sealed class PermissionService : IPermissionService
 {
@@ -48,9 +40,7 @@ public sealed class PermissionService : IPermissionService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>
-    /// Check if user has specific permission
-    /// </summary>
+    /// <inheritdoc />
     public async Task<bool> HasPermissionAsync(
         string userId,
         string module,
@@ -58,12 +48,12 @@ public sealed class PermissionService : IPermissionService
         string action,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
         {
             return false;
         }
 
-        // Check super admin first (bypass all permission checks)
+        // Super admin bypasses all permission checks
         if (await IsSuperAdminAsync(userId, cancellationToken))
         {
             _logger.LogDebug(
@@ -72,7 +62,6 @@ public sealed class PermissionService : IPermissionService
             return true;
         }
 
-        // Get user permissions (cached)
         var permissions = await GetUserPermissionsAsync(userId, cancellationToken);
         var permissionKey = $"{module}.{entity}.{action}";
 
@@ -85,39 +74,23 @@ public sealed class PermissionService : IPermissionService
         return hasPermission;
     }
 
-    /// <summary>
-    /// Get user's scope for a permission
-    /// </summary>
-    public async Task<ScopeLevel?> GetScopeLevelAsync(
+    /// <inheritdoc />
+    public async Task<bool> HasPermissionAsync(
         string userId,
-        string module,
-        string entity,
-        string action,
+        string permissionKey,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(userId))
+        var parts = permissionKey.Split('.');
+        if (parts.Length != 3)
         {
-            return null;
+            _logger.LogWarning("Invalid permission key format: {PermissionKey}", permissionKey);
+            return false;
         }
 
-        // Super admin has company-wide scope
-        if (await IsSuperAdminAsync(userId, cancellationToken))
-        {
-            return ScopeLevel.Company;
-        }
-
-        // TODO: Implement actual scope lookup from database
-        // Currently returns Company scope if user has permission
-        // Future: Query RolePermissions.Scope for the specific permission
-        var hasPermission = await HasPermissionAsync(userId, module, entity, action, cancellationToken);
-
-        return hasPermission ? ScopeLevel.Company : null;
+        return await HasPermissionAsync(userId, parts[0], parts[1], parts[2], cancellationToken);
     }
 
-    /// <summary>
-    /// Get all permissions for a user
-    /// Uses caching for performance
-    /// </summary>
+    /// <inheritdoc />
     public async Task<HashSet<string>> GetUserPermissionsAsync(
         string userId,
         CancellationToken cancellationToken = default)
@@ -129,18 +102,15 @@ public sealed class PermissionService : IPermissionService
 
         var cacheKey = $"{PermissionCacheKeyPrefix}{userId}";
 
-        // Try get from cache
         if (_cache.TryGetValue<HashSet<string>>(cacheKey, out var cachedPermissions) && cachedPermissions != null)
         {
             _logger.LogDebug("Cache hit for user {UserId} permissions", userId);
             return cachedPermissions;
         }
 
-        // Load from database
         _logger.LogDebug("Cache miss for user {UserId} permissions, loading from database", userId);
         var permissions = await _permissionRepository.GetPermissionsAsync(operatorId, cancellationToken);
 
-        // Cache for future requests
         _cache.Set(cacheKey, permissions, CacheDuration);
 
         _logger.LogDebug(
@@ -151,10 +121,7 @@ public sealed class PermissionService : IPermissionService
         return permissions;
     }
 
-    /// <summary>
-    /// Check if user is super admin (has "System Administrator" role)
-    /// Uses caching for performance
-    /// </summary>
+    /// <inheritdoc />
     public async Task<bool> IsSuperAdminAsync(
         string userId,
         CancellationToken cancellationToken = default)
@@ -166,16 +133,13 @@ public sealed class PermissionService : IPermissionService
 
         var cacheKey = $"{SuperAdminCacheKeyPrefix}{userId}";
 
-        // Try get from cache
         if (_cache.TryGetValue<bool>(cacheKey, out var cachedResult))
         {
             return cachedResult;
         }
 
-        // Query database
         var isSuperAdmin = await _permissionRepository.IsSuperAdminAsync(operatorId, cancellationToken);
 
-        // Cache for future requests
         _cache.Set(cacheKey, isSuperAdmin, CacheDuration);
 
         if (isSuperAdmin)
@@ -187,200 +151,14 @@ public sealed class PermissionService : IPermissionService
     }
 
     /// <summary>
-    /// Invalidate permission cache for a user
-    /// Call this when user's roles or permissions change
+    /// Invalidate permission cache for a user.
+    /// Call this when user's roles or permissions change.
     /// </summary>
     public void InvalidateCache(string userId)
     {
-        var permissionCacheKey = $"{PermissionCacheKeyPrefix}{userId}";
-        var superAdminCacheKey = $"{SuperAdminCacheKeyPrefix}{userId}";
-        var permissionScopeCacheKey = $"{ScopeLevelCacheKeyPrefix}{userId}";
-
-        _cache.Remove(permissionCacheKey);
-        _cache.Remove(superAdminCacheKey);
-        _cache.Remove(permissionScopeCacheKey);
+        _cache.Remove($"{PermissionCacheKeyPrefix}{userId}");
+        _cache.Remove($"{SuperAdminCacheKeyPrefix}{userId}");
 
         _logger.LogInformation("Permission cache invalidated for user {UserId}", userId);
-    }
-
-    // ================================================================
-    // New methods for ScopeLevel-based authorization
-    // ================================================================
-
-    private const string ScopeLevelCacheKeyPrefix = "UserScopeLevels_";
-
-    /// <summary>
-    /// Check if user has permission with the specified key format
-    /// </summary>
-    public async Task<bool> HasPermissionAsync(
-        string userId,
-        string permissionKey,
-        CancellationToken cancellationToken = default)
-    {
-        // Parse permission key (Module.Entity.Action)
-        var parts = permissionKey.Split('.');
-        if (parts.Length != 3)
-        {
-            _logger.LogWarning("Invalid permission key format: {PermissionKey}", permissionKey);
-            return false;
-        }
-
-        return await HasPermissionAsync(userId, parts[0], parts[1], parts[2], cancellationToken);
-    }
-
-    /// <summary>
-    /// Check if user has permission with at least the specified scope level
-    /// </summary>
-    public async Task<bool> HasPermissionWithScopeAsync(
-        string userId,
-        string permissionKey,
-        ScopeLevel minScope,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await AuthorizeAsync(userId, permissionKey, minScope, cancellationToken);
-        return result.IsAuthorized;
-    }
-
-    /// <summary>
-    /// Authorize a user for a permission with scope check in a single operation
-    /// Returns both authorization decision and user's scope level
-    /// </summary>
-    public async Task<AuthorizationResult> AuthorizeAsync(
-        string userId,
-        string permissionKey,
-        ScopeLevel minScope,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out _))
-        {
-            return AuthorizationResult.Denied("Invalid user ID");
-        }
-
-        // Super admin has Global scope for all permissions
-        if (await IsSuperAdminAsync(userId, cancellationToken))
-        {
-            _logger.LogDebug(
-                "Super admin bypass for user {UserId}, permission {PermissionKey}",
-                userId, permissionKey);
-            return AuthorizationResult.Authorized(ScopeLevel.Global);
-        }
-
-        // Get all permissions with scopes (single cached call)
-        var permissionsWithScopes = await GetUserPermissionsWithScopesAsync(userId, cancellationToken);
-
-        if (!permissionsWithScopes.TryGetValue(permissionKey, out var userScope))
-        {
-            _logger.LogDebug(
-                "User {UserId} does not have permission {PermissionKey}",
-                userId, permissionKey);
-            return AuthorizationResult.Denied($"Permission not granted: {permissionKey}");
-        }
-
-        // Check if user's scope is <= required scope (lower number = wider access)
-        var hasScope = (int)userScope <= (int)minScope;
-
-        if (!hasScope)
-        {
-            _logger.LogDebug(
-                "Scope insufficient for user {UserId}: {PermissionKey} userScope={UserScope} > minScope={MinScope}",
-                userId, permissionKey, userScope, minScope);
-            return AuthorizationResult.Denied(
-                $"Insufficient scope: has {userScope}, requires {minScope}");
-        }
-
-        _logger.LogDebug(
-            "Authorized user {UserId}: {PermissionKey} userScope={UserScope} <= minScope={MinScope}",
-            userId, permissionKey, userScope, minScope);
-
-        return AuthorizationResult.Authorized(userScope);
-    }
-
-    /// <summary>
-    /// Get user's scope for a specific permission key
-    /// </summary>
-    public async Task<ScopeLevel?> GetScopeLevelAsync(
-        string userId,
-        string permissionKey,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
-        {
-            return null;
-        }
-
-        // Super admin has Global scope
-        if (await IsSuperAdminAsync(userId, cancellationToken))
-        {
-            return ScopeLevel.Global;
-        }
-
-        // Get all permissions with scopes (cached)
-        var permissionsWithScopes = await GetUserPermissionsWithScopesAsync(userId, cancellationToken);
-
-        if (permissionsWithScopes.TryGetValue(permissionKey, out var scope))
-        {
-            return scope;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Get all permissions with their scopes for a user
-    /// Uses caching for performance
-    /// </summary>
-    public async Task<Dictionary<string, ScopeLevel>> GetUserPermissionsWithScopesAsync(
-        string userId,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var operatorId))
-        {
-            return new Dictionary<string, ScopeLevel>();
-        }
-
-        var cacheKey = $"{ScopeLevelCacheKeyPrefix}{userId}";
-
-        // Try get from cache
-        if (_cache.TryGetValue<Dictionary<string, ScopeLevel>>(cacheKey, out var cachedPermissions)
-            && cachedPermissions != null)
-        {
-            _logger.LogDebug("Cache hit for user {UserId} permission scopes", userId);
-            return cachedPermissions;
-        }
-
-        // Load from database
-        _logger.LogDebug("Cache miss for user {UserId} permission scopes, loading from database", userId);
-        var permissionsWithScopes = await _permissionRepository.GetPermissionsWithScopesAsync(
-            operatorId,
-            cancellationToken);
-
-        // Convert to ScopeLevel enum
-        var result = new Dictionary<string, ScopeLevel>();
-        foreach (var (key, dbScopeValue) in permissionsWithScopes)
-        {
-            // Map database scope value to ScopeLevel enum
-            // Database values (from migration): 0=Global, 1=Company, 2=Department, 3=Position, 4=Employee
-            // If using old migration (4=Global, 3=Company...), this mapping handles both
-            var scope = dbScopeValue switch
-            {
-                0 => ScopeLevel.Global,
-                1 => ScopeLevel.Company,
-                2 => ScopeLevel.Department,
-                3 => ScopeLevel.Position,
-                4 => ScopeLevel.Employee,
-                _ => ScopeLevel.Global // Default to Global for null/unknown
-            };
-            result[key] = scope;
-        }
-
-        // Cache for future requests
-        _cache.Set(cacheKey, result, CacheDuration);
-
-        _logger.LogDebug(
-            "Loaded {Count} permissions with scopes for user {UserId}",
-            result.Count,
-            userId);
-
-        return result;
     }
 }

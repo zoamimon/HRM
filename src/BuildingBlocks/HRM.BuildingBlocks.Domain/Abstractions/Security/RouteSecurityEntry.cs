@@ -1,10 +1,16 @@
-using HRM.BuildingBlocks.Domain.Enums;
-
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
 /// <summary>
-/// Represents a route security configuration entry
-/// Maps an HTTP route to its required permission and minimum scope
+/// Represents a route security configuration entry.
+/// Maps an HTTP route to its required permission.
+///
+/// Design (separation of concerns):
+/// - Permission (action): "Can this user do this?" → Identity answers
+/// - Data Scope (data range): "What data can they see?" → Business module answers
+///
+/// Route security ONLY handles permission checks.
+/// RequiresDataScope is a flag — the actual scope resolution happens
+/// in the business module via IDataScopeService, NOT here.
 /// </summary>
 public sealed record RouteSecurityEntry
 {
@@ -25,10 +31,11 @@ public sealed record RouteSecurityEntry
     public required string Permission { get; init; }
 
     /// <summary>
-    /// Minimum scope level required to access this route
-    /// User's scope must be &lt;= MinScope (lower number = wider access)
+    /// Whether this route requires data scope filtering.
+    /// If true, downstream query handlers should resolve scope
+    /// via IDataScopeService (business module).
     /// </summary>
-    public required ScopeLevel MinScope { get; init; }
+    public bool RequiresDataScope { get; init; }
 
     /// <summary>
     /// Compiled regex pattern for route matching

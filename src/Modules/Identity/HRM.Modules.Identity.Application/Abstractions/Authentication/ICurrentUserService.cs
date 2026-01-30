@@ -5,33 +5,16 @@ namespace HRM.Modules.Identity.Application.Abstractions.Authentication;
 
 /// <summary>
 /// Identity module's typed user context service.
-/// Extends IExecutionContext with Identity-specific business vocabulary.
+/// Extends IExecutionContext with Identity-specific vocabulary.
 ///
 /// Design (kgrzybek-style Module Isolation):
 /// - IExecutionContext (BuildingBlocks): primitive types only (Guid, string, bool)
-/// - ICurrentUserService (Identity): adds AccountType, ScopeLevel, EmployeeId
+/// - ICurrentUserService (Identity): adds AccountType, EmployeeId
 /// - Other modules depend on IExecutionContext, NOT ICurrentUserService
-/// - Only Identity module knows about AccountType and ScopeLevel
 ///
-/// Usage in Identity module:
-/// <code>
-/// public class SomeIdentityHandler
-/// {
-///     private readonly ICurrentUserService _currentUser;
-///
-///     public async Task Handle(...)
-///     {
-///         if (_currentUser.IsSystemAccount())
-///         {
-///             // System accounts have global access
-///         }
-///         else if (_currentUser.ScopeLevel == ScopeLevel.Department)
-///         {
-///             // Department-level scoping
-///         }
-///     }
-/// }
-/// </code>
+/// What Identity knows: AccountId, AccountType, Roles, Permissions
+/// What Identity does NOT know: ScopeLevel, CompanyId, DepartmentId, Org tree
+/// (ScopeLevel belongs to business/HRM module — data scope is NOT identity)
 /// </summary>
 public interface ICurrentUserService : IExecutionContext
 {
@@ -47,12 +30,6 @@ public interface ICurrentUserService : IExecutionContext
 #pragma warning disable CS0618
     UserType UserType { get; }
 #pragma warning restore CS0618
-
-    /// <summary>
-    /// Gets the current user's scope level (only for Employee accounts).
-    /// Null for System accounts (they have global access).
-    /// </summary>
-    ScopeLevel? ScopeLevel { get; }
 
     /// <summary>
     /// Gets the current user's employee ID (only for Employee accounts).

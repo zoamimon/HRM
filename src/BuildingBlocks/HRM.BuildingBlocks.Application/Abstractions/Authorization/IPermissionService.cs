@@ -1,85 +1,30 @@
-using HRM.BuildingBlocks.Domain.Enums;
-
 namespace HRM.BuildingBlocks.Application.Abstractions.Authorization;
 
 /// <summary>
-/// Result of a single authorization check
-/// Combines authorization decision and scope in one response
-/// Used to avoid multiple DB queries for permission + scope
-/// </summary>
-public sealed record AuthorizationResult
-{
-    /// <summary>
-    /// Whether the user is authorized
-    /// </summary>
-    public required bool IsAuthorized { get; init; }
-
-    /// <summary>
-    /// User's scope level for this permission (null if not authorized)
-    /// </summary>
-    public ScopeLevel? Scope { get; init; }
-
-    /// <summary>
-    /// Reason for denial (null if authorized)
-    /// </summary>
-    public string? DenialReason { get; init; }
-
-    /// <summary>
-    /// Create an authorized result
-    /// </summary>
-    public static AuthorizationResult Authorized(ScopeLevel scope) => new()
-    {
-        IsAuthorized = true,
-        Scope = scope,
-        DenialReason = null
-    };
-
-    /// <summary>
-    /// Create a denied result
-    /// </summary>
-    public static AuthorizationResult Denied(string reason) => new()
-    {
-        IsAuthorized = false,
-        Scope = null,
-        DenialReason = reason
-    };
-}
-
-/// <summary>
-/// Service for checking user permissions
+/// Service for checking user permissions (pure Identity concern).
 ///
-/// Design:
-/// - Abstraction for permission checking logic
-/// - Implementation in Identity.Infrastructure (has access to user roles/permissions)
-/// - Used by PermissionAuthorizationHandler
+/// Design (separation of concerns):
+/// - IPermissionService answers: "Does this user have this permission?" (action-based)
+/// - Data scope ("what data range?") is a SEPARATE concern handled by IDataScopeService
 ///
 /// Permission Model:
 /// - Users have Roles
-/// - Roles have Permissions (Module.Entity.Action + Scope)
-/// - Scope determines data visibility (Company, Department, Position, Self)
+/// - Roles have Permissions (Module.Entity.Action)
+/// - NO ScopeLevel here — scope is resolved by business module
 ///
 /// Usage:
 /// <code>
-/// // Check if user has permission
 /// var hasPermission = await permissionService.HasPermissionAsync(
-///     userId, "Personnel", "Employee", "View");
+///     userId, "Personnel.Employee.View");
 ///
-/// // Get user's scope for a permission
-/// var scope = await permissionService.GetScopeLevelAsync(
-///     userId, "Personnel", "Employee", "View");
+/// var allPermissions = await permissionService.GetUserPermissionsAsync(userId);
 /// </code>
 /// </summary>
 public interface IPermissionService
 {
     /// <summary>
-    /// Check if user has specific permission (any scope)
+    /// Check if user has specific permission (module.entity.action)
     /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="module">Module name</param>
-    /// <param name="entity">Entity name</param>
-    /// <param name="action">Action name</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if user has the permission</returns>
     Task<bool> HasPermissionAsync(
         string userId,
         string module,
@@ -88,29 +33,16 @@ public interface IPermissionService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get user's scope for a specific permission
-    /// Returns null if user doesn't have the permission
+    /// Check if user has permission by key (e.g., "Identity.Operator.View")
     /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="module">Module name</param>
-    /// <param name="entity">Entity name</param>
-    /// <param name="action">Action name</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Scope level or null if no permission</returns>
-    Task<ScopeLevel?> GetScopeLevelAsync(
+    Task<bool> HasPermissionAsync(
         string userId,
-        string module,
-        string entity,
-        string action,
+        string permissionKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all permissions for a user
-    /// Used for caching or displaying in UI
+    /// Get all permissions for a user (set of "Module.Entity.Action" strings)
     /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Set of permission strings (Module.Entity.Action)</returns>
     Task<HashSet<string>> GetUserPermissionsAsync(
         string userId,
         CancellationToken cancellationToken = default);
@@ -118,76 +50,7 @@ public interface IPermissionService
     /// <summary>
     /// Check if user is a super admin (bypasses all permission checks)
     /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if user is super admin</returns>
     Task<bool> IsSuperAdminAsync(
-        string userId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Check if user has permission with the specified key format
-    /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if user has the permission</returns>
-    Task<bool> HasPermissionAsync(
-        string userId,
-        string permissionKey,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Check if user has permission with at least the specified scope level
-    /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
-    /// <param name="minScope">Minimum required scope level</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if user has the permission with sufficient scope</returns>
-    Task<bool> HasPermissionWithScopeAsync(
-        string userId,
-        string permissionKey,
-        ScopeLevel minScope,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Authorize a user for a permission with scope check in a single query
-    /// Returns both authorization decision and user's scope level
-    ///
-    /// Use this method instead of calling HasPermissionWithScopeAsync + GetScopeLevelAsync
-    /// separately to avoid N+1 DB queries
-    /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
-    /// <param name="minScope">Minimum required scope level</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>AuthorizationResult with IsAuthorized flag and user's Scope</returns>
-    Task<AuthorizationResult> AuthorizeAsync(
-        string userId,
-        string permissionKey,
-        ScopeLevel minScope,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get user's scope for a specific permission key
-    /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="permissionKey">Permission key (e.g., "Identity.Operator.View")</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>ScopeLevel or null if user doesn't have the permission</returns>
-    Task<ScopeLevel?> GetScopeLevelAsync(
-        string userId,
-        string permissionKey,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get all permissions with their scopes for a user
-    /// </summary>
-    /// <param name="userId">User ID (Guid as string)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Dictionary of permission key to scope</returns>
-    Task<Dictionary<string, ScopeLevel>> GetUserPermissionsWithScopesAsync(
         string userId,
         CancellationToken cancellationToken = default);
 }

@@ -1,15 +1,17 @@
 using System.Linq.Expressions;
 using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.BuildingBlocks.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HRM.BuildingBlocks.Infrastructure.Security;
 
 /// <summary>
-/// Service for managing and applying permission-based query filters
-/// Retrieves filters from DI and applies them to queries
+/// Service for managing and applying permission-based query filters.
+/// Retrieves filters from DI and applies them to queries.
+///
+/// Design: Uses DataScopeRule (resolved by IDataScopeService in business module)
+/// to build permission filter expressions. No ScopeLevel dependency.
 /// </summary>
 public sealed class PermissionFilterService : IPermissionFilterService
 {
@@ -66,29 +68,10 @@ public sealed class PermissionFilterService : IPermissionFilterService
         }
 
         _logger.LogDebug(
-            "Applying permission filter for {Permission} with scope {Scope} on {Entity}",
+            "Applying permission filter for {Permission} on {Entity}",
             permission,
-            context.Scope,
             typeof(TEntity).Name);
 
         return query.Where(filterExpression);
-    }
-
-    /// <inheritdoc />
-    public PermissionFilterContext BuildContext(
-        Guid userId,
-        string permission,
-        ScopeLevel scope,
-        Guid? departmentId = null,
-        Guid? companyId = null)
-    {
-        return new PermissionFilterContext
-        {
-            UserId = userId,
-            Permission = permission,
-            Scope = scope,
-            DepartmentId = departmentId,
-            CompanyId = companyId
-        };
     }
 }

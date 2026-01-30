@@ -9,15 +9,20 @@ using Microsoft.Extensions.Options;
 namespace HRM.BuildingBlocks.Infrastructure.Security;
 
 /// <summary>
-/// Middleware that enforces route-based permission security
-/// Replaces [HasPermission] attributes with centralized route protection
+/// Middleware that enforces route-based permission security.
 ///
 /// Pipeline Flow:
 /// 1. Check if route is public -> Allow
 /// 2. Check if user is authenticated -> Deny if not
 /// 3. Lookup route permission requirement
-/// 4. Check if user has permission with required scope
-/// 5. Allow or Deny
+/// 4. Check if user has permission (pure action check, NO scope)
+/// 5. Store RequiresDataScope flag for downstream handlers
+/// 6. Allow or Deny
+///
+/// Design (separation of concerns):
+/// - This middleware ONLY checks permissions (action-based)
+/// - Data scope filtering is handled by business module (IDataScopeService)
+/// - RequiresDataScope flag is stored in HttpContext.Items for downstream use
 /// </summary>
 public sealed class RoutePermissionMiddleware
 {
@@ -120,18 +125,17 @@ public sealed class RoutePermissionMiddleware
             return;
         }
 
-        // 5. Authorize user (single call for permission + scope)
-        var authResult = await permissionService.AuthorizeAsync(
+        // 5. Check permission (pure action check — no scope)
+        var hasPermission = await permissionService.HasPermissionAsync(
             userId,
             routeEntry.Permission,
-            routeEntry.MinScope,
             context.RequestAborted);
 
-        if (!authResult.IsAuthorized)
+        if (!hasPermission)
         {
             _logger.LogWarning(
-                "Permission denied for user {UserId}: {Permission} with MinScope {MinScope} on {Method} {Path}. Reason: {Reason}",
-                userId, routeEntry.Permission, routeEntry.MinScope, method, path, authResult.DenialReason);
+                "Permission denied for user {UserId}: {Permission} on {Method} {Path}",
+                userId, routeEntry.Permission, method, path);
 
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new
@@ -139,20 +143,19 @@ public sealed class RoutePermissionMiddleware
                 type = "https://httpstatuses.io/403",
                 title = "Forbidden",
                 status = 403,
-                detail = authResult.DenialReason ?? $"Permission required: {routeEntry.Permission}",
-                permission = routeEntry.Permission,
-                minScope = routeEntry.MinScope.ToString()
+                detail = $"Permission required: {routeEntry.Permission}",
+                permission = routeEntry.Permission
             });
             return;
         }
 
         _logger.LogDebug(
-            "Permission granted for user {UserId}: {Permission} (scope={Scope}) on {Method} {Path}",
-            userId, routeEntry.Permission, authResult.Scope, method, path);
+            "Permission granted for user {UserId}: {Permission} on {Method} {Path}",
+            userId, routeEntry.Permission, method, path);
 
-        // 6. Store the user's scope in HttpContext for use by query filters
+        // 6. Store context for downstream handlers
         context.Items["CurrentPermission"] = routeEntry.Permission;
-        context.Items["CurrentPermissionScope"] = authResult.Scope!.Value;
+        context.Items["RequiresDataScope"] = routeEntry.RequiresDataScope;
 
         await _next(context);
     }

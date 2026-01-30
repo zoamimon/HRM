@@ -3,7 +3,6 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.BuildingBlocks.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace HRM.BuildingBlocks.Infrastructure.Security;
@@ -104,25 +103,19 @@ public sealed class RouteSecurityService : IRouteSecurityService
                     var method = routeElement.Attribute("Method")?.Value ?? "GET";
                     var path = routeElement.Attribute("Path")?.Value ?? "";
                     var permission = routeElement.Attribute("Permission")?.Value ?? "";
-                    var minScopeStr = routeElement.Attribute("MinScope")?.Value ?? "Global";
+                    var requiresDataScopeStr = routeElement.Attribute("RequiresDataScope")?.Value;
 
                     if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(permission))
                         continue;
 
-                    if (!Enum.TryParse<ScopeLevel>(minScopeStr, true, out var minScope))
-                    {
-                        _logger.LogWarning(
-                            "Invalid MinScope '{MinScope}' for route {Method} {Path} in {Source}",
-                            minScopeStr, method, path, sourceName);
-                        minScope = ScopeLevel.Global;
-                    }
+                    var requiresDataScope = string.Equals(requiresDataScopeStr, "true", StringComparison.OrdinalIgnoreCase);
 
                     _protectedRoutes.Add(new RouteSecurityEntry
                     {
                         Method = method.ToUpperInvariant(),
                         Path = path,
                         Permission = permission,
-                        MinScope = minScope,
+                        RequiresDataScope = requiresDataScope,
                         PathPattern = ConvertPathToRegex(path)
                     });
                 }

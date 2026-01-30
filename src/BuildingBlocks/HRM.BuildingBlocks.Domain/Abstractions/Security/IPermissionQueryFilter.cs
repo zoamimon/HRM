@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using HRM.BuildingBlocks.Domain.Enums;
 
 namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 
@@ -7,16 +6,16 @@ namespace HRM.BuildingBlocks.Domain.Abstractions.Security;
 /// [DEPRECATED] Interface for permission-based query filters
 ///
 /// IMPORTANT: This interface is deprecated. Use the Scope Specification Pattern instead:
-/// - IDataScopeRuleProvider: Single source of truth for scope rules
+/// - IDataScopeService: Resolves DataScopeRule for user + permission
 /// - EfScopeExpressionBuilder: Translates rules to EF expressions
 /// - SqlScopeWhereBuilder: Translates rules to SQL WHERE clauses
 ///
 /// Migration:
-/// 1. Inject IDataScopeRuleProvider
-/// 2. Get rule: var rule = await ruleProvider.GetRuleAsync(context)
+/// 1. Inject IDataScopeService (business module)
+/// 2. Get rule: var rule = await dataScopeService.GetScopeRuleAsync(userId, permission)
 /// 3. Build expression: var expr = EfScopeExpressionBuilder.Build&lt;T&gt;(rule)
 /// </summary>
-[Obsolete("Use IDataScopeRuleProvider + EfScopeExpressionBuilder instead. See Scope Specification Pattern.")]
+[Obsolete("Use IDataScopeService + EfScopeExpressionBuilder instead. See Scope Specification Pattern.")]
 public interface IPermissionQueryFilter<TEntity> where TEntity : class
 {
     /// <summary>
@@ -27,16 +26,19 @@ public interface IPermissionQueryFilter<TEntity> where TEntity : class
     /// <summary>
     /// Build the filter expression based on user context
     /// </summary>
-    /// <param name="context">User context with permission and scope</param>
+    /// <param name="context">User context with permission and scope rule</param>
     /// <returns>Expression to filter entities</returns>
     Expression<Func<TEntity, bool>> Build(PermissionFilterContext context);
 }
 
 /// <summary>
-/// [DEPRECATED] Context for building permission query filters
-/// Use DataScopeContext from IDataScopeRuleProvider instead.
+/// [DEPRECATED] Context for building permission query filters.
+/// Use DataScopeRule from IDataScopeService instead.
+///
+/// Design: ScopeLevel removed — scope is now expressed via DataScopeRule
+/// which contains the resolved scope (allowed IDs, scope type flags).
 /// </summary>
-[Obsolete("Use DataScopeContext from IDataScopeRuleProvider instead.")]
+[Obsolete("Use DataScopeRule from IDataScopeService instead.")]
 public sealed record PermissionFilterContext
 {
     /// <summary>
@@ -50,19 +52,10 @@ public sealed record PermissionFilterContext
     public required string Permission { get; init; }
 
     /// <summary>
-    /// User's scope for this permission
+    /// Resolved data scope rule for this user + permission.
+    /// Contains scope type flags and allowed entity IDs.
     /// </summary>
-    public required ScopeLevel Scope { get; init; }
-
-    /// <summary>
-    /// User's department ID (for Department scope filtering)
-    /// </summary>
-    public Guid? DepartmentId { get; init; }
-
-    /// <summary>
-    /// User's company ID (for Company scope filtering)
-    /// </summary>
-    public Guid? CompanyId { get; init; }
+    public required DataScopeRule ScopeRule { get; init; }
 
     /// <summary>
     /// Additional context data (for custom filters)

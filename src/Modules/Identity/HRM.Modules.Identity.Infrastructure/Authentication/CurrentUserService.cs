@@ -7,7 +7,10 @@ namespace HRM.Modules.Identity.Infrastructure.Authentication;
 
 /// <summary>
 /// Implementation of ICurrentUserService that reads user information from JWT claims.
-/// Lives in Identity.Infrastructure — only Identity module has typed access to AccountType/ScopeLevel.
+/// Lives in Identity.Infrastructure — Identity module has typed access to AccountType.
+///
+/// What Identity knows: AccountId, AccountType, Roles, Permissions
+/// What Identity does NOT know: ScopeLevel, CompanyId, DepartmentId, Org tree
 ///
 /// Other modules use IExecutionContext (BuildingBlocks) which provides only primitives.
 /// DI registers this as both ICurrentUserService and IExecutionContext.
@@ -108,32 +111,6 @@ public sealed class CurrentUserService : ICurrentUserService
         }
     }
 #pragma warning restore CS0618
-
-    /// <inheritdoc />
-    public ScopeLevel? ScopeLevel
-    {
-        get
-        {
-            if (AccountType == AccountType.System)
-            {
-                return null;
-            }
-
-            var scopeLevelClaim = User?.FindFirst("ScopeLevel")?.Value;
-
-            if (string.IsNullOrEmpty(scopeLevelClaim))
-            {
-                return Domain.Enums.ScopeLevel.Employee;
-            }
-
-            if (Enum.TryParse<ScopeLevel>(scopeLevelClaim, ignoreCase: true, out var scopeLevel))
-            {
-                return scopeLevel;
-            }
-
-            return Domain.Enums.ScopeLevel.Employee;
-        }
-    }
 
     /// <inheritdoc />
     public Guid? EmployeeId
