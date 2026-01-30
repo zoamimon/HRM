@@ -1,7 +1,8 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Audit;
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 
-namespace HRM.BuildingBlocks.Domain.Entities;
+namespace HRM.Modules.Identity.Domain.Entities;
 
 /// <summary>
 /// Unified Account entity for authentication.

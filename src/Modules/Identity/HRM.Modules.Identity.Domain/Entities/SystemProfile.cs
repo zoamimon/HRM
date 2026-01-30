@@ -1,4 +1,6 @@
-namespace HRM.BuildingBlocks.Domain.Entities;
+using HRM.BuildingBlocks.Domain.Entities;
+
+namespace HRM.Modules.Identity.Domain.Entities;
 
 /// <summary>
 /// Profile data for System accounts (operators, admins)

@@ -1,6 +1,7 @@
+using HRM.BuildingBlocks.Domain.Entities;
 using HRM.BuildingBlocks.Domain.Enums;
 
-namespace HRM.BuildingBlocks.Domain.Entities;
+namespace HRM.Modules.Identity.Domain.Entities;
 
 /// <summary>
 /// Profile data for Employee accounts
@@ -8,10 +9,15 @@ namespace HRM.BuildingBlocks.Domain.Entities;
 ///
 /// Relationship:
 /// - Account (1) --- (0..1) EmployeeProfile
-/// - EmployeeProfile (1) --- (1) Employee (in Personnel module)
+/// - EmployeeProfile (1) --- (1) Employee (in Personnel module, referenced by ID only)
 /// - Only for AccountType.Employee
 ///
 /// This bridges authentication (Account) with HR data (Employee).
+///
+/// Cross-module reference:
+/// - EmployeeId is an opaque Guid reference to Personnel module
+/// - Identity module does NOT depend on Personnel.Domain
+/// - This follows kgrzybek-style module isolation
 /// </summary>
 public class EmployeeProfile : AuditableEntity
 {
@@ -21,13 +27,17 @@ public class EmployeeProfile : AuditableEntity
     public Guid AccountId { get; private set; }
 
     /// <summary>
-    /// Reference to the Employee entity (in Personnel module)
+    /// Reference to the Employee entity (in Personnel module).
+    /// Opaque ID — Identity module does not reference Personnel.Domain.
     /// </summary>
     public Guid EmployeeId { get; private set; }
 
     /// <summary>
-    /// Default scope level for this employee's permissions
-    /// Can be overridden per-permission via RolePermissions
+    /// Default scope level for this employee's permissions.
+    /// Can be overridden per-permission via RolePermissions.
+    ///
+    /// Note: ScopeLevel is an authorization vocabulary internal to Identity module.
+    /// Other modules receive DataScopeRule (contract), not ScopeLevel directly.
     /// </summary>
     public ScopeLevel DefaultScopeLevel { get; private set; } = ScopeLevel.Employee;
 
