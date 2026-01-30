@@ -1,18 +1,14 @@
-using HRM.BuildingBlocks.Domain.Entities;
-
-namespace HRM.BuildingBlocks.Domain.Enums;
+namespace HRM.Modules.Identity.Domain.Enums;
 
 /// <summary>
 /// Defines the type of authenticated user in the system.
 ///
-/// ⚠️ DEPRECATED: Use AccountType instead.
+/// DEPRECATED: Use AccountType instead.
 /// This enum is kept for backward compatibility during migration.
 ///
 /// Migration Guide:
 /// - UserType.Operator → AccountType.System
 /// - UserType.User → AccountType.Employee
-///
-/// Use UserTypeExtensions.ToAccountType() to convert.
 /// </summary>
 [Obsolete("Use AccountType instead. UserType will be removed in a future version. " +
           "Use UserTypeExtensions.ToAccountType() for conversion.")]
@@ -34,15 +30,14 @@ public enum UserType
 }
 
 /// <summary>
-/// Extension methods for UserType ↔ AccountType conversion.
-/// Use these during migration period.
+/// Extension methods for UserType - AccountType conversion.
 /// </summary>
 public static class UserTypeExtensions
 {
+#pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
     /// Convert UserType to AccountType.
     /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
     public static AccountType ToAccountType(this UserType userType)
     {
         return userType switch

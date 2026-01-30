@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Enums;
 
 namespace HRM.Modules.Identity.Domain.ValueObjects;
 

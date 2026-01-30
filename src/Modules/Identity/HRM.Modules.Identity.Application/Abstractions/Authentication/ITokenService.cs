@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
+using HRM.Modules.Identity.Domain.Abstractions.Authentication;
 
 namespace HRM.Modules.Identity.Application.Abstractions.Authentication;
 

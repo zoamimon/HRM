@@ -1,5 +1,5 @@
 using HRM.BuildingBlocks.Domain.Abstractions.Results;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Configuration;
 using HRM.Modules.Identity.Application.Errors;

@@ -186,7 +186,7 @@ public sealed class PermissionAction
     /// <summary>
     /// Get scope by value
     /// </summary>
-    public PermissionScope? GetScope(HRM.BuildingBlocks.Domain.Enums.ScopeLevel scopeLevel)
+    public PermissionScope? GetScope(HRM.Modules.Identity.Domain.Enums.ScopeLevel scopeLevel)
     {
         return Scopes.FirstOrDefault(s => s.Value == scopeLevel);
     }
@@ -194,7 +194,7 @@ public sealed class PermissionAction
     /// <summary>
     /// Check if action allows specific scope
     /// </summary>
-    public bool AllowsScope(HRM.BuildingBlocks.Domain.Enums.ScopeLevel scopeLevel)
+    public bool AllowsScope(HRM.Modules.Identity.Domain.Enums.ScopeLevel scopeLevel)
     {
         return Scopes.Any(s => s.Value == scopeLevel);
     }

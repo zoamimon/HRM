@@ -1,22 +1,16 @@
 using Dapper;
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
-using HRM.BuildingBlocks.Application.Abstractions.Data;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Abstractions.Data;
+using HRM.Modules.Identity.Domain.Enums;
 using System.Data;
 
-namespace HRM.BuildingBlocks.Infrastructure.Authorization;
+namespace HRM.Modules.Identity.Infrastructure.Authorization;
 
 /// <summary>
-/// [DEPRECATED] Implementation of IDataScopingService
+/// [DEPRECATED] Implementation of IDataScopingService.
+/// Use IDataScopeRuleProvider + SqlScopeWhereBuilder instead.
 ///
-/// IMPORTANT: This class is deprecated. Use the Scope Specification Pattern instead:
-/// - IDataScopeRuleProvider: Single source of truth for scope rules
-/// - SqlScopeWhereBuilder: Translates rules to SQL WHERE clauses
-///
-/// Migration:
-/// 1. Inject IDataScopeRuleProvider
-/// 2. Get rule: var rule = await ruleProvider.GetRuleAsync(context)
-/// 3. Build SQL: var where = SqlScopeWhereBuilder.Build(rule, parameters)
+/// Lives in Identity.Infrastructure — uses Identity-specific vocabulary.
 /// </summary>
 [Obsolete("Use IDataScopeRuleProvider + SqlScopeWhereBuilder instead. See Scope Specification Pattern.")]
 public sealed class DataScopingService : IDataScopingService
@@ -25,11 +19,6 @@ public sealed class DataScopingService : IDataScopingService
     private readonly IDbConnection _connection;
     private DataScopeContext? _cachedScopeContext;
 
-    /// <summary>
-    /// Constructor with dependencies
-    /// </summary>
-    /// <param name="currentUserService">Service to get current user information</param>
-    /// <param name="connection">Database connection for querying assignments</param>
     public DataScopingService(
         ICurrentUserService currentUserService,
         IDbConnection connection)
@@ -38,24 +27,13 @@ public sealed class DataScopingService : IDataScopingService
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
     }
 
-    /// <summary>
-    /// Get current user's data scope context
-    /// Loads active assignments and builds allowed IDs
-    ///
-    /// Caching:
-    /// - Cached in _cachedScopeContext for request lifetime
-    /// - Subsequent calls return cached context
-    /// - Service is scoped (per request), cache cleared between requests
-    /// </summary>
     public async Task<DataScopeContext> GetCurrentScopeAsync(CancellationToken cancellationToken = default)
     {
-        // Return cached context if available
         if (_cachedScopeContext is not null)
         {
             return _cachedScopeContext;
         }
 
-        // Build scope context based on user type
         if (!_currentUserService.IsAuthenticated)
         {
             throw new InvalidOperationException(
@@ -63,11 +41,10 @@ public sealed class DataScopingService : IDataScopingService
             );
         }
 
-#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
+#pragma warning disable CS0618
         if (_currentUserService.IsOperator())
 #pragma warning restore CS0618
         {
-            // System accounts have global access (no scoping)
             _cachedScopeContext = new DataScopeContext
             {
                 AccountType = AccountType.System,
@@ -81,7 +58,6 @@ public sealed class DataScopingService : IDataScopingService
             return _cachedScopeContext;
         }
 
-        // User: Load assignments from database
         var employeeId = _currentUserService.EmployeeId;
         if (employeeId is null)
         {
@@ -92,10 +68,8 @@ public sealed class DataScopingService : IDataScopingService
 
         var scopeLevel = _currentUserService.ScopeLevel ?? ScopeLevel.Employee;
 
-        // Query active assignments
         var assignments = await LoadActiveAssignmentsAsync(employeeId.Value, cancellationToken);
 
-        // Build allowed IDs based on scope level
         var context = new DataScopeContext
         {
             AccountType = AccountType.Employee,
@@ -110,18 +84,6 @@ public sealed class DataScopingService : IDataScopingService
         return _cachedScopeContext;
     }
 
-    /// <summary>
-    /// Build SQL WHERE clause filter for data scoping
-    ///
-    /// Returns:
-    /// - Empty string for Operators (no filtering)
-    /// - SQL filter with parameters for Users
-    ///
-    /// Example Output:
-    /// - "AND ea.CompanyId IN @AllowedCompanyIds"
-    /// - "AND ea.DepartmentId IN @AllowedDepartmentIds"
-    /// - "AND e.Id = @CurrentUserId"
-    /// </summary>
     public string BuildScopeFilter(DataScopeContext scopeContext, dynamic parameters)
     {
         if (scopeContext is null)
@@ -134,15 +96,13 @@ public sealed class DataScopingService : IDataScopingService
             throw new ArgumentNullException(nameof(parameters));
         }
 
-        // System accounts: No filtering
-#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
+#pragma warning disable CS0618
         if (scopeContext.IsOperator)
 #pragma warning restore CS0618
         {
             return string.Empty;
         }
 
-        // Users: Apply filtering based on scope level
         return scopeContext.ScopeLevel switch
         {
             ScopeLevel.Company => BuildCompanyFilter(scopeContext, parameters),
@@ -153,13 +113,6 @@ public sealed class DataScopingService : IDataScopingService
         };
     }
 
-    /// <summary>
-    /// Check if current user can access specific employee
-    ///
-    /// Validation:
-    /// - Operators: Always true (global access)
-    /// - Users: Query database to check if employee in scope
-    /// </summary>
     public async Task<bool> CanAccessEmployeeAsync(
         DataScopeContext scopeContext,
         Guid employeeId,
@@ -170,21 +123,18 @@ public sealed class DataScopingService : IDataScopingService
             throw new ArgumentNullException(nameof(scopeContext));
         }
 
-        // System accounts can access all employees
-#pragma warning disable CS0618 // IsOperator is obsolete - this class itself is deprecated
+#pragma warning disable CS0618
         if (scopeContext.IsOperator)
 #pragma warning restore CS0618
         {
             return true;
         }
 
-        // Employee-level: Can only access own data
         if (scopeContext.ScopeLevel == ScopeLevel.Employee)
         {
             return employeeId == scopeContext.UserId;
         }
 
-        // For higher levels: Check if employee in allowed scope
         var sql = scopeContext.ScopeLevel switch
         {
             ScopeLevel.Company => @"
@@ -211,7 +161,7 @@ public sealed class DataScopingService : IDataScopingService
             _ => throw new InvalidOperationException($"Unknown scope level: {scopeContext.ScopeLevel}")
         };
 
-        var parameters = new
+        var queryParameters = new
         {
             EmployeeId = employeeId,
             AllowedCompanyIds = scopeContext.AllowedCompanyIds,
@@ -219,11 +169,9 @@ public sealed class DataScopingService : IDataScopingService
             AllowedPositionIds = scopeContext.AllowedPositionIds
         };
 
-        var count = await _connection.ExecuteScalarAsync<int>(sql, parameters);
+        var count = await _connection.ExecuteScalarAsync<int>(sql, queryParameters);
         return count > 0;
     }
-
-    // Private helper methods
 
     private async Task<List<AssignmentDto>> LoadActiveAssignmentsAsync(
         Guid employeeId,
@@ -250,7 +198,6 @@ public sealed class DataScopingService : IDataScopingService
     {
         if (!context.AllowedCompanyIds.Any())
         {
-            // No companies assigned = no access
             return "AND 1 = 0";
         }
 
@@ -262,7 +209,6 @@ public sealed class DataScopingService : IDataScopingService
     {
         if (!context.AllowedDepartmentIds.Any())
         {
-            // No departments assigned = no access
             return "AND 1 = 0";
         }
 
@@ -274,7 +220,6 @@ public sealed class DataScopingService : IDataScopingService
     {
         if (!context.AllowedPositionIds.Any())
         {
-            // No positions assigned = no access
             return "AND 1 = 0";
         }
 
@@ -288,7 +233,6 @@ public sealed class DataScopingService : IDataScopingService
         return "AND e.Id = @CurrentUserId";
     }
 
-    // DTO for loading assignments
     private sealed class AssignmentDto
     {
         public Guid CompanyId { get; init; }

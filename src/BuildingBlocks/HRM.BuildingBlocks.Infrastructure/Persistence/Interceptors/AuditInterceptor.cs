@@ -6,40 +6,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
 
 /// <summary>
-/// EF Core SaveChanges interceptor for automatic audit field updates
+/// EF Core SaveChanges interceptor for automatic audit field updates.
 ///
-/// Responsibilities:
-/// - Automatically update ModifiedAtUtc and ModifiedById for modified entities
-/// - Automatically set CreatedById for new entities
-/// - Track WHO made changes (CreatedBy/ModifiedBy)
-/// - No manual audit field management needed in application code
-///
-/// Benefits:
-/// - Centralized audit logic
-/// - Cannot be forgotten or bypassed
-/// - Consistent audit trail across entire application
-/// - Tracks both WHEN (timestamps) and WHO (user IDs)
-/// - Reduces boilerplate in domain/application layers
-///
-/// How It Works:
-/// 1. Intercepts SaveChanges/SaveChangesAsync calls
-/// 2. Gets current user ID from ICurrentUserService
-/// 3. Updates CreatedById for EntityState.Added entities
-/// 4. Updates ModifiedById and ModifiedAtUtc for EntityState.Modified entities
-/// 5. Continues with normal SaveChanges execution
-///
-/// Usage:
-/// Register as singleton in DI (already done in InfrastructureServiceExtensions):
-///
-/// <code>
-/// services.AddSingleton<AuditInterceptor>();
-///
-/// services.AddDbContext<IdentityDbContext>((serviceProvider, options) =>
-/// {
-///     options.UseSqlServer(connectionString);
-///     options.AddInterceptors(serviceProvider.GetRequiredService<AuditInterceptor>());
-/// });
-/// </code>
+/// Uses IExecutionContext (BuildingBlocks) — NOT ICurrentUserService (Identity module).
+/// This keeps BuildingBlocks independent of Identity module.
+/// Only needs IsAuthenticated and UserId — both available on IExecutionContext.
 ///
 /// Audit Fields:
 /// - CreatedAtUtc: Set in Entity constructor
@@ -54,20 +25,20 @@ namespace HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
 /// </summary>
 public sealed class AuditInterceptor : SaveChangesInterceptor
 {
-    private readonly ICurrentUserService? _currentUserService;
+    private readonly IExecutionContext? _executionContext;
 
     /// <summary>
-    /// Constructor with optional current user service
-    /// ICurrentUserService may be null for background operations or seeding
+    /// Constructor with optional execution context.
+    /// IExecutionContext may be null for background operations or seeding.
     /// </summary>
-    /// <param name="currentUserService">Current user service (may be null)</param>
-    public AuditInterceptor(ICurrentUserService? currentUserService = null)
+    /// <param name="executionContext">Execution context (may be null)</param>
+    public AuditInterceptor(IExecutionContext? executionContext = null)
     {
-        _currentUserService = currentUserService;
+        _executionContext = executionContext;
     }
+
     /// <summary>
     /// Called before synchronous SaveChanges
-    /// Updates audit fields for modified entities
     /// </summary>
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
@@ -79,7 +50,6 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
 
     /// <summary>
     /// Called before asynchronous SaveChangesAsync
-    /// Updates audit fields for modified entities
     /// </summary>
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
@@ -91,14 +61,9 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>
-    /// Update audit fields for all added and modified entities
-    /// - Added entities: Set CreatedById
-    /// - Modified entities: Set ModifiedAtUtc and ModifiedById
-    ///
-    /// Note: Only AuditableEntity (and its descendants) have audit fields.
-    /// Plain Entity (minimal) does not have audit capabilities.
+    /// Update audit fields for all added and modified entities.
+    /// Only AuditableEntity (and descendants) have audit fields.
     /// </summary>
-    /// <param name="context">DbContext with tracked entities</param>
     private void UpdateAuditFields(DbContext? context)
     {
         if (context is null)
@@ -108,11 +73,11 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
 
         // Get current user ID (may be null for anonymous operations)
         Guid? currentUserId = null;
-        if (_currentUserService?.IsAuthenticated == true)
+        if (_executionContext?.IsAuthenticated == true)
         {
             try
             {
-                currentUserId = _currentUserService.UserId;
+                currentUserId = _executionContext.UserId;
             }
             catch
             {
@@ -121,8 +86,6 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
             }
         }
 
-        // Get all added and modified AuditableEntity instances
-        // Note: Only AuditableEntity has audit fields, not Entity
         var entries = context.ChangeTracker
             .Entries<AuditableEntity>()
             .Where(entry => entry.State == EntityState.Added ||
@@ -132,23 +95,19 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
         {
             if (entry.State == EntityState.Added)
             {
-                // New entity: Set CreatedById
                 if (currentUserId.HasValue)
                 {
                     entry.Entity.SetCreatedBy(currentUserId.Value);
                 }
-                // CreatedAtUtc already set in AuditableEntity constructor
             }
             else if (entry.State == EntityState.Modified)
             {
-                // Modified entity: Set ModifiedAtUtc and ModifiedById
                 if (currentUserId.HasValue)
                 {
                     entry.Entity.MarkAsModified(currentUserId.Value);
                 }
                 else
                 {
-                    // No user context, just update timestamp
                     entry.Entity.MarkAsModified();
                 }
             }

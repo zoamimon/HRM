@@ -1,6 +1,5 @@
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
+using HRM.Modules.Identity.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
-using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
 using HRM.Modules.Identity.Application.Commands.Login;
 using HRM.Modules.Identity.Application.Commands.Logout;
 using HRM.Modules.Identity.Application.Commands.RefreshToken;

@@ -1,6 +1,6 @@
 using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Domain.Repositories;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;

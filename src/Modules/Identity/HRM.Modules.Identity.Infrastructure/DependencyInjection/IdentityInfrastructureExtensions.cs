@@ -1,4 +1,4 @@
-using HRM.BuildingBlocks.Application.Abstractions.Authorization;
+using HRM.BuildingBlocks.Application.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Abstractions.Permissions;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
 using HRM.BuildingBlocks.Infrastructure.Security;
@@ -122,6 +122,11 @@ public static class IdentityInfrastructureExtensions
         services.AddSingleton<IOperatorPermissionRepository, OperatorPermissionRepository>();
 
         // 3. Register Authentication Services
+        // CurrentUserService implements both ICurrentUserService (Identity) and IExecutionContext (shared)
+        // Other modules depend on IExecutionContext (primitives only), Identity uses ICurrentUserService (typed)
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IExecutionContext>(sp => sp.GetRequiredService<ICurrentUserService>());
+
         // Singleton: Stateless services, safe to share across requests
         // NOTE: These are Identity module-specific, used only for login/registration
         services.AddSingleton<IPasswordHasher, PasswordHasher>();

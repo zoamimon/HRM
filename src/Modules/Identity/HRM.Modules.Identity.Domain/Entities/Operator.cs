@@ -1,6 +1,6 @@
-using HRM.BuildingBlocks.Domain.Abstractions.Authentication;
+using HRM.Modules.Identity.Domain.Abstractions.Authentication;
 using HRM.BuildingBlocks.Domain.Entities;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Domain.Events;
 
 namespace HRM.Modules.Identity.Domain.Entities;

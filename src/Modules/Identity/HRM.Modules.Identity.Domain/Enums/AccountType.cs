@@ -1,4 +1,4 @@
-namespace HRM.BuildingBlocks.Domain.Enums;
+namespace HRM.Modules.Identity.Domain.Enums;
 
 /// <summary>
 /// Defines the type of authenticated account in the system.
@@ -6,33 +6,21 @@ namespace HRM.BuildingBlocks.Domain.Enums;
 /// This is the canonical enum for account classification.
 /// Replaces the deprecated UserType enum.
 ///
-/// Mapping from deprecated UserType:
-/// - UserType.Operator → AccountType.System
-/// - UserType.User → AccountType.Employee
+/// This enum is INTERNAL to the Identity module.
+/// Other modules should NOT reference this enum directly.
+/// They receive DataScopeRule (contract) instead.
 /// </summary>
 public enum AccountType
 {
     /// <summary>
     /// System account (internal operators, admins).
     /// Has access to system configuration and all data.
-    ///
-    /// Characteristics:
-    /// - Not linked to any employee
-    /// - Global access (no ScopeLevel restrictions)
-    /// - Can manage all data across all companies
-    /// - Used for: System admins, IT support, super users
     /// </summary>
     System = 0,
 
     /// <summary>
     /// Employee account (HR employees).
     /// Access is scoped based on department/company/position.
-    ///
-    /// Characteristics:
-    /// - Linked to an Employee entity via EmployeeProfile
-    /// - Has ScopeLevel (Company/Department/Position/Employee)
-    /// - Can only access data within their assigned scope
-    /// - Used for: Regular employees, managers, executives
     /// </summary>
     Employee = 1
 }
@@ -44,7 +32,6 @@ public enum AccountStatus
 {
     /// <summary>
     /// Account is pending activation.
-    /// Cannot login until activated.
     /// </summary>
     Pending = 0,
 
@@ -55,13 +42,11 @@ public enum AccountStatus
 
     /// <summary>
     /// Account is suspended (temporarily disabled).
-    /// Cannot login. Can be reactivated.
     /// </summary>
     Suspended = 2,
 
     /// <summary>
     /// Account is deactivated (permanently disabled).
-    /// Cannot login. Typically not reactivated.
     /// </summary>
     Deactivated = 3
 }

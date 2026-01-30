@@ -1,5 +1,5 @@
 using HRM.BuildingBlocks.Domain.Entities;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Domain.Enums;
 using HRM.Modules.Identity.Domain.Entities;
 
 namespace HRM.Modules.Identity.Domain.Repositories;

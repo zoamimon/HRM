@@ -1,25 +1,17 @@
 using System.Data;
 using Dapper;
-using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.BuildingBlocks.Domain.Enums;
+using HRM.Modules.Identity.Application.Abstractions.Authorization;
+using HRM.Modules.Identity.Domain.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
-namespace HRM.BuildingBlocks.Infrastructure.Security;
+namespace HRM.Modules.Identity.Infrastructure.Security;
 
 /// <summary>
-/// Implementation of IDataScopeRuleProvider
-/// SINGLE SOURCE OF TRUTH for all data scoping logic
-///
-/// All business rules for scoping are here:
-/// - Scope hierarchy: Global > Company > Department > Position > Employee
-/// - System accounts get Global access
-/// - Employee accounts get scope based on ScopeLevel and EmployeeAssignments
-///
-/// Caching:
-/// - Per-request caching via Scoped lifetime
-/// - Memory cache for frequently accessed data
+/// Implementation of IDataScopeRuleProvider.
+/// SINGLE SOURCE OF TRUTH for all data scoping logic.
+/// Lives in Identity.Infrastructure — scope business rules belong to Identity module.
 /// </summary>
 public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
 {
@@ -27,7 +19,6 @@ public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
     private readonly IMemoryCache _cache;
     private readonly ILogger<DataScopeRuleProvider> _logger;
 
-    // Per-request cache
     private DataScopeRule? _cachedRule;
     private DataScopeContext? _cachedContext;
 
@@ -48,7 +39,6 @@ public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
         DataScopeContext context,
         CancellationToken cancellationToken = default)
     {
-        // Return cached rule if context matches
         if (_cachedRule != null && ContextMatches(context))
         {
             return _cachedRule;
@@ -64,13 +54,11 @@ public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
     /// <inheritdoc />
     public DataScopeRule GetRule(DataScopeContext context)
     {
-        // Return cached rule if context matches
         if (_cachedRule != null && ContextMatches(context))
         {
             return _cachedRule;
         }
 
-        // For sync version, use cached assignments or return basic rule
         var rule = BuildRuleSync(context);
         _cachedRule = rule;
         _cachedContext = context;
@@ -91,7 +79,6 @@ public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
         DataScopeContext context,
         CancellationToken cancellationToken)
     {
-        // System accounts (Operators) get Global access
         if (context.IsSystemAccount)
         {
             _logger.LogDebug(
@@ -101,38 +88,29 @@ public sealed class DataScopeRuleProvider : IDataScopeRuleProvider
             return DataScopeRule.Global();
         }
 
-        // Determine rule based on ScopeLevel
         return context.ScopeLevel switch
         {
             ScopeLevel.Global => DataScopeRule.Global(),
-
             ScopeLevel.Company => await BuildCompanyScopeRuleAsync(context, cancellationToken),
-
             ScopeLevel.Department => await BuildDepartmentScopeRuleAsync(context, cancellationToken),
-
             ScopeLevel.Position => await BuildPositionScopeRuleAsync(context, cancellationToken),
-
             ScopeLevel.Employee => BuildEmployeeScopeRule(context),
-
             _ => DataScopeRule.None()
         };
     }
 
     private DataScopeRule BuildRuleSync(DataScopeContext context)
     {
-        // System accounts get Global
         if (context.IsSystemAccount)
         {
             return DataScopeRule.Global();
         }
 
-        // For sync, we can only handle simple cases
-        // Complex cases (Company/Department/Position) need async lookup
         return context.ScopeLevel switch
         {
             ScopeLevel.Global => DataScopeRule.Global(),
             ScopeLevel.Employee => BuildEmployeeScopeRule(context),
-            _ => DataScopeRule.None() // Need async for other scopes
+            _ => DataScopeRule.None()
         };
     }
 

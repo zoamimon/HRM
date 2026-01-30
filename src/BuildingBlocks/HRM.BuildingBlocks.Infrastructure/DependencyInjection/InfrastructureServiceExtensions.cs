@@ -1,12 +1,7 @@
-using System.Reflection;
 using System.Text;
-using HRM.BuildingBlocks.Application.Abstractions.Authentication;
-using HRM.BuildingBlocks.Application.Abstractions.Data;
 using HRM.BuildingBlocks.Application.Abstractions.EventBus;
 using HRM.BuildingBlocks.Application.Abstractions.Infrastructure;
-using HRM.BuildingBlocks.Application.Abstractions.Authorization;
 using HRM.BuildingBlocks.Domain.Abstractions.Security;
-using HRM.BuildingBlocks.Infrastructure.Authentication;
 using HRM.BuildingBlocks.Infrastructure.EventBus;
 using HRM.BuildingBlocks.Infrastructure.Http;
 using HRM.BuildingBlocks.Infrastructure.Persistence.Interceptors;
@@ -45,11 +40,13 @@ namespace HRM.BuildingBlocks.Infrastructure.DependencyInjection;
 ///
 /// What Gets Registered:
 /// - IEventBus → InMemoryEventBus (singleton)
-/// - ICurrentUserService → CurrentUserService (scoped)
 /// - IClientInfoService → ClientInfoService (scoped)
 /// - IClaimsTransformation → RolesClaimsTransformation (scoped)
-/// - AuditInterceptor (scoped - depends on ICurrentUserService)
-/// - HttpContextAccessor (for CurrentUserService and ClientInfoService)
+/// - AuditInterceptor (scoped - depends on IExecutionContext)
+/// - HttpContextAccessor
+///
+/// Moved to Identity module:
+/// - ICurrentUserService / IExecutionContext → CurrentUserService
 ///
 /// NOT Registered Here (moved to Application layer):
 /// - MediatR (registered in BuildingBlocksApplication)
@@ -90,10 +87,8 @@ public static class InfrastructureServiceExtensions
         // HTTP Context Accessor (required for CurrentUserService)
         services.AddHttpContextAccessor();
 
-        // Authentication Services
-        // NOTE: ICurrentUserService is shared across all modules for authorization
-        // IPasswordHasher and ITokenService are registered in Identity module (authentication-specific)
-        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        // NOTE: ICurrentUserService and IExecutionContext are registered in Identity module
+        // (CurrentUserService implements both interfaces)
 
         // HTTP Context Services
         // NOTE: IClientInfoService provides access to HTTP request context (IP, UserAgent, etc.)
@@ -114,7 +109,7 @@ public static class InfrastructureServiceExtensions
         //     new SqlConnection(configuration.GetConnectionString("ModuleDb")));
 
         // EF Core Interceptors
-        // NOTE: AuditInterceptor is Scoped because it depends on ICurrentUserService (Scoped)
+        // NOTE: AuditInterceptor is Scoped because it depends on IExecutionContext (Scoped)
         services.AddScoped<AuditInterceptor>();
 
         // Route-based Security Services
